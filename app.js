@@ -25,10 +25,10 @@ app.use(express.urlencoded({ extended: false }));
 app.use(cookieParser());
 
 // routes
-app.use('/', indexRouter);
-app.use('/users', usersRouter);
-app.use('/photoList', photoListRouter);
-app.use('/api', loginRouter);
+app.use('/lyl', indexRouter);
+app.use('/lyl', usersRouter);
+app.use('/lyl', photoListRouter);
+app.use('/lyl/api', loginRouter);
 
 // error handler
 app.use((err, req, res, next) => {

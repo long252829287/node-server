@@ -30,7 +30,7 @@ router.post('/login', (req, res) => {
     }
 });
 
-router.use('/api', (req, res, next) => {
+router.use('/lyl/api', (req, res, next) => {
   const token = req.headers['authorization'];
   if (!token) {
     res.status(401).json({
