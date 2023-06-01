@@ -46,14 +46,6 @@ liuyl
 
 这将在您的本地计算机上创建一个新的文件夹，并克隆远程Git仓库到该文件夹中。之后，您就可以使用`git checkout -b <new-branch-name>`来创建一个新的分支并进行修改了。修改完成后，可以使用`git push origin <new-branch-name>`将这些更改推送到您的远程Git仓库中的新分支。
 
-
-
-
-
-
-
-
-
 ## Project Setup
 
 ```sh
@@ -70,4 +62,23 @@ npm run dev
 
 ```sh
 npm run build
+```
+
+### mongo服务器启动命令汇总
+
+```js
+启动mongo服务
+mongod --fork --dbpath=/data/mongodb/data --logpath=/data/mongodb/log/mongo.log
+（首先使用上面的，下面的没运行成功 上面的是查询出的历史记录）
+sudo ./mongod --dbpath=/data/mongodb --logpath=/data/mongodb/log/mongod.log --fork
+
+查看mongo服务
+ps -ef|grep mongod
+查看端口进程
+sudo netstat -tlnp
+
+
+
+
+
 ```
