@@ -44,5 +44,4 @@ app.use((err, req, res, next) => {
   res.status(status).send({ error: { status, message } });
 });
 
-
 module.exports = app;
