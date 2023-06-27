@@ -11,6 +11,7 @@ const usersRouter = require('./routes/users');
 const photoListRouter = require('./routes/photolist');
 const loginRouter = require('./routes/login');
 const chartRouter = require('./routes/chat');
+const douyuRouter = require('./routes/douyu');
 
 const app = express();
 const PUBLIC_DIR = 'public';
@@ -20,7 +21,8 @@ const VIEWS_DIR = 'views';
 app.set('views', path.join(__dirname, VIEWS_DIR));
 app.set('view engine', 'jade');
 
-// middleware
+// middlewareconst bodyParser = require('body-parser');
+
 app.use(bodyParser.json());
 app.use(express.static(path.join(__dirname, PUBLIC_DIR)));
 app.use(logger('dev'));
@@ -34,6 +36,7 @@ app.use('/lyl', usersRouter);
 app.use('/lyl', photoListRouter);
 app.use('/lyl/api', loginRouter);
 app.use('/lyl/chat', chartRouter);
+app.use('/lyl/douyu', douyuRouter);
 
 // error handler
 app.use((err, req, res, next) => {
