@@ -2,7 +2,8 @@ require('http');
 const axios = require('axios').default;
 const request = axios.create({
   headers: {
-    Authorization: `Bearer ${process.env.OPENAI_API_KEY}`,
+    Authorization: `Bearer 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`,
+    ContentType: "application/json"
   },
 });
 const chatCompletionURL = `https://api.openai.com/v1/chat/completions`;

@@ -1,4 +1,5 @@
 require('dotenv').config();
+require('rootpath')();
 const bodyParser = require('body-parser');
 const createError = require('http-errors');
 const express = require('express');
@@ -6,12 +7,14 @@ const path = require('path');
 const cookieParser = require('cookie-parser');
 const logger = require('morgan');
 
+
 const indexRouter = require('./routes/index');
 const usersRouter = require('./routes/users');
 const photoListRouter = require('./routes/photolist');
 const loginRouter = require('./routes/login');
 const chartRouter = require('./routes/chat');
 const douyuRouter = require('./routes/douyu');
+const testRouter = require('./routes/test');
 
 const app = express();
 const PUBLIC_DIR = 'public';
@@ -37,6 +40,7 @@ app.use('/lyl', photoListRouter);
 app.use('/lyl/api', loginRouter);
 app.use('/lyl/chat', chartRouter);
 app.use('/lyl/douyu', douyuRouter);
+app.use('/lyl/test', testRouter);
 
 // error handler
 app.use((err, req, res, next) => {
