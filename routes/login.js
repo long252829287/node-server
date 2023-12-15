@@ -5,6 +5,9 @@ const bodyParser = require('body-parser');
 const cors = require('cors');
 const secretKey = 'your_secret_key';
 
+// const MongoClient = require('mongodb').MongoClient;
+// const bcrypt = require('bcrypt');
+
 
 router.use(cors());
 
@@ -29,6 +32,33 @@ router.post('/login', (req, res) => {
         });
     }
 });
+
+// app.post('/register', (req, res) => {
+//   const { username, password } = req.body;
+
+//   const collection = client.db().collection('users');
+//   collection.findOne({ username }, (err, user) => {
+//     if (user) {
+//       res.status(409).json({ message: 'Username already exists' });
+//     } else {
+//       bcrypt.hash(password, 10, (err, hashedPassword) => {
+//         if (err) {
+//           res.status(500).json({ message: 'Error hashing password' });
+//         } else {
+//           const token = jwt.sign({ username }, 'your-secret-key');
+
+//           collection.insertOne({ username, password: hashedPassword, token }, (err) => {
+//             if (err) {
+//               res.status(500).json({ message: 'Error registering user' });
+//             } else {
+//               res.status(201).json({ message: 'User registered successfully' });
+//             }
+//           });
+//         }
+//       });
+//     }
+//   });
+// });
 
 router.use('/lyl/api', (req, res, next) => {
   const token = req.headers['authorization'];

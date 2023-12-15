@@ -7,15 +7,6 @@ const path = require('path');
 const cookieParser = require('cookie-parser');
 const logger = require('morgan');
 
-
-const indexRouter = require('./routes/index');
-const usersRouter = require('./routes/users');
-const photoListRouter = require('./routes/photolist');
-const loginRouter = require('./routes/login');
-const chartRouter = require('./routes/chat');
-const douyuRouter = require('./routes/douyu');
-const testRouter = require('./routes/test');
-
 const app = express();
 const PUBLIC_DIR = 'public';
 const VIEWS_DIR = 'views';
@@ -33,14 +24,7 @@ app.use(express.json());
 app.use(express.urlencoded({ extended: false }));
 app.use(cookieParser());
 
-// routes
-app.use('/lyl', indexRouter);
-app.use('/lyl', usersRouter);
-app.use('/lyl', photoListRouter);
-app.use('/lyl/api', loginRouter);
-app.use('/lyl/chat', chartRouter);
-app.use('/lyl/douyu', douyuRouter);
-app.use('/lyl/test', testRouter);
+require('./routes')(app);
 
 // error handler
 app.use((err, req, res, next) => {
