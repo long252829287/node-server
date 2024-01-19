@@ -16,7 +16,7 @@ module.exports = function (app) {
     
     // routes
     app.use('/lyl', index);
-    app.use('/lyl', users);
+    app.use('/lyl/user', users);
     app.use('/lyl', photoList);
     app.use('/lyl/login', login);
     app.use('/lyl/chat', chat);
