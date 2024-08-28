@@ -1,4 +1,0 @@
-﻿{
-    "connectionString": "mongodb://localhost/127.0.0.1:27017/test",
-    "secret": "lyl"
-}
