@@ -78,7 +78,45 @@ ps -ef|grep mongod
 sudo netstat -tlnp
 
 
+[root@iZ2zegs8fjen5oykese2vrZ bin]# ./mongod --dbpath /usr/local/mongodb/data/db --bind_ip 0.0.0.0
+
+
+```
+
+### mongo.conf
 
 
 
 ```
+systemLog:
+   destination: file #日志输出方式。file/syslog,如果是file，需指定path，默认是输出到标准输出流中
+   path:  /usr/local/mongodb/mongod.log #日志路径
+   logAppend: true #启动时，日志追加在已有日志文件内还是备份旧日志后，创建新文件记录日志，默认false
+   
+net:
+  port: 27017 #监听端口，默认27017
+  bindIp： 0.0.0.0 #绑定监听的ip，设置为127.0.0.1时，只会监听本机
+  maxIncomingConnections: 65536 #最大连接数，可接受的连接数还受限于操作系统配置的最大连接数
+  wireObjectCheck: true #检验客户端的请求，防止错误的或无效BSON插入，多层文档嵌套的对象会有轻微性能影响，默认true
+  
+processManagement:
+  fork: true #后台运行
+	
+security:
+  authorization: disabled # enable/disabled # 开启客户端认证
+
+storage:
+  dbpath: /usr/local/mongodb/data/db # 数据库地址
+  journal:
+    enabled: true #启动journal,64位系统默认开启，32位默认关闭
+```
+
+启动
+`cd /usr/local/mongodb/bin`
+
+./mongo --config ../mongodb.conf
+
+
+
+直接启动加后台进程守护
+./mongod --dbpath /usr/local/mongodb/data/db --bind_ip 0.0.0.0 --logpath /usr/local/mongodb/mongod.log --fork
