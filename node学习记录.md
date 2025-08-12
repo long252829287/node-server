@@ -2,6 +2,10 @@ NodeJs学习记录
 
 资料补充: [七天学会NodeJS](http://nqdeng.github.io/7-days-nodejs)
 
+### 环境配置
+
+复制 `.env.example` 为 `.env`，并配置 `PORT`、`MONGODB_URI` 等环境变量。
+
 ### 基础
 
 ### 什么是NodeJS

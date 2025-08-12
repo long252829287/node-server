@@ -1,41 +1,53 @@
 var express = require('express');
 var router = express.Router();
-const { exec } = require('child_process');
+const { spawn } = require('child_process');
 const os = require('os');
 
+function isValidRid(rid) {
+  return typeof rid === 'string' && rid.length > 0 && rid.length < 64 && /^[\w-]+$/.test(rid);
+}
+
 router.post('/room', (req, res) => {
-  const rid = req.body.rid;
-  // nodejs检测为linux系统还是windows系统 
-  console.log('os', os.type());
-  if (os.type() === 'Linux') {
-    exec('python3 /usr/local/server/script/douyu.py ' + rid, (err, stdout, stderr) => {
-      try {
-        const str = stdout.trim()
-        const regex = /"m3u8":\s*"(.+?)"/;
-        const match = str.match(regex);
-        const extractedUrl = match ? match[1] : null;
-        const result = { fileUrl: extractedUrl };
-        res.json(result);
-      } catch (error) {
-        console.error(`Error: ${error}`);
-        res.status(500).send('Internal Server Error');
-      }
-    });
-  } else {
-    exec('python ./script/douyu.py ' + rid, (err, stdout, stderr) => {
-      try {
-        const str = stdout.trim()
-        const regex = /"m3u8":\s*"(.+?)"/;
-        const match = str.match(regex);
-        const extractedUrl = match ? match[1] : null;
-        const result = { fileUrl: extractedUrl };
-        res.json(result);
-      } catch (error) {
-        console.error(`Error: ${error}`);
-        res.status(500).send('Internal Server Error');
-      }
-    });
+  const rid = String(req.body.rid || '').trim();
+  if (!isValidRid(rid)) {
+    return res.status(400).json({ error: { status: 400, message: 'Invalid rid' } });
   }
+
+  const isLinux = os.type() === 'Linux';
+  const pythonCmd = isLinux ? 'python3' : 'python';
+  const scriptPath = isLinux ? '/usr/local/server/script/douyu.py' : 'script/douyu.py';
+
+  const child = spawn(pythonCmd, [scriptPath, rid], { stdio: ['ignore', 'pipe', 'pipe'] });
+  const timer = setTimeout(() => {
+    child.kill('SIGKILL');
+  }, 15000);
+
+  let stdout = '';
+  let stderr = '';
+  child.stdout.on('data', (data) => (stdout += data.toString()));
+  child.stderr.on('data', (data) => (stderr += data.toString()));
+  child.on('error', (err) => {
+    clearTimeout(timer);
+    console.error('spawn error:', err);
+    res.status(500).json({ error: { status: 500, message: 'Script error' } });
+  });
+  child.on('close', (code) => {
+    clearTimeout(timer);
+    if (code !== 0) {
+      console.error('script exit code', code, 'stderr:', stderr);
+      return res.status(500).json({ error: { status: 500, message: 'Script failed' } });
+    }
+    try {
+      const str = stdout.trim();
+      const regex = /"m3u8":\s*"(.+?)"/;
+      const match = str.match(regex);
+      const extractedUrl = match ? match[1] : null;
+      return res.json({ fileUrl: extractedUrl });
+    } catch (error) {
+      console.error('parse error', error);
+      return res.status(500).json({ error: { status: 500, message: 'Parse error' } });
+    }
+  });
 });
 
 

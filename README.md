@@ -4,6 +4,26 @@
 
 liuyl
 
+## Quick start
+
+1. Install dependencies:
+
+```sh
+npm install
+```
+
+2. Copy env template and adjust values:
+
+```sh
+cp .env.example .env
+```
+
+3. Start in dev mode:
+
+```sh
+npm run dev
+```
+
 ### git代码提交至远程仓库流程：
 
 1. 安装Git并在本地创建一个新的Git仓库。
