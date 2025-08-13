@@ -1,142 +1,247 @@
-# frame-work
+# Node.js 直播平台API服务器
 
-## author
+## 项目简介
 
-liuyl
+这是一个基于 Node.js + Express 的 Web API 服务器项目，主要用于提供斗鱼和虎牙直播平台的房间信息查询服务。项目采用分层架构设计，遵循 MVC 模式，具有良好的代码组织和扩展性。
 
-## Quick start
+## 🚀 主要功能
 
-1. Install dependencies:
+- **斗鱼直播服务**: 获取斗鱼直播房间信息和直播流地址
+- **虎牙直播服务**: 获取虎牙直播相关信息
+- **健康检查**: 服务器状态监控，支持负载均衡
+- **安全防护**: 请求限流、安全头设置、CORS配置
+- **统一响应**: 标准化的API响应格式
+- **跨平台支持**: 支持Windows和Linux环境
 
-```sh
+## 🏗️ 项目架构
+
+```
+src/
+├── server.js          # 服务器启动文件
+├── app.js             # Express应用配置
+├── config/            # 配置文件目录
+├── routes/            # 路由层
+├── controllers/       # 控制器层
+├── services/          # 服务层
+├── middleware/        # 中间件
+├── utils/             # 工具类
+└── validators/        # 数据验证器
+```
+
+## 📦 技术栈
+
+### 核心框架
+- **Node.js**: JavaScript运行时环境
+- **Express**: Web应用框架
+- **MongoDB**: 数据库（通过Mongoose）
+
+### 安全中间件
+- **Helmet**: 安全头设置
+- **CORS**: 跨域资源共享
+- **express-rate-limit**: 请求频率限制
+
+### 性能优化
+- **compression**: 响应压缩
+- **morgan**: HTTP请求日志
+
+### 开发工具
+- **nodemon**: 开发环境自动重启
+- **dotenv**: 环境变量管理
+
+## 🛠️ 安装和运行
+
+### 环境要求
+- Node.js >= 16.0.0
+- npm >= 8.0.0
+- MongoDB (本地或远程)
+
+### 安装依赖
+```bash
 npm install
 ```
 
-2. Copy env template and adjust values:
-
-```sh
+### 环境配置
+1. 复制环境变量示例文件：
+```bash
 cp .env.example .env
 ```
 
-3. Start in dev mode:
+2. 修改 `.env` 文件中的配置：
+```env
+# 服务器配置
+PORT=3000
+NODE_ENV=development
 
-```sh
+# 数据库配置
+MONGODB_URI=mongodb://localhost:27017/lyl_dev
+
+# CORS配置
+CORS_ORIGIN=*
+```
+
+### 启动服务
+
+#### 开发环境
+```bash
 npm run dev
 ```
+使用nodemon自动重启，适合开发调试。
 
-### git代码提交至远程仓库流程：
+#### 生产环境
+```bash
+npm start
+```
+直接启动Node.js服务。
 
-1. 安装Git并在本地创建一个新的Git仓库。
+## 📡 API接口
 
-2. 在该文件夹中，打开终端，并输入以下命令以初始化新的Git仓库
-   
-   `git init`
+### 基础信息
+- **根路径**: `GET /` - 返回API信息和使用说明
+- **健康检查**: `GET /health` - 服务器状态检查
 
-3. 关联本地Git仓库到远程Git仓库。
+### 斗鱼直播API
+- **获取房间信息**: `POST /api/douyu/room`
+  - 请求体: `{ "rid": "房间ID" }`
+  - 响应: 房间信息和直播流地址
 
-如果您还没有一个远程Git仓库，您需要先创建一个。在某个Git托管服务上（如GitHub、GitLab、Bitbucket等）上创建一个新的远程Git仓库。在该仓库的页面上可以看到仓库的URL地址。以GitHub为例，该地址类似于：
+### 虎牙直播API
+- **相关接口**: `POST /api/huya/*`
+  - 提供虎牙直播相关功能
 
-`[https://github.com/](https://github.com/)/.git`
+## 🔒 安全特性
 
-回到您的本地Git仓库中，在终端中输入以下命令以将本地仓库关联到远程仓库：
+### 请求限流
+- **全局限流**: 每个IP 15分钟内最多100次请求
+- **API限流**: 每个IP 15分钟内最多50次API请求
+- **健康检查**: 不受限流影响
 
-`git remote add origin [https://github.com/](https://github.com/)/.git`
+### 安全头设置
+- 防止XSS、CSRF等常见攻击
+- 支持HTTPS和HSTS
+- 可配置内容安全策略
 
-4. 将本地代码添加到Git仓库，并提交更改。
+### CORS配置
+- 可配置允许的源域名
+- 支持凭证传递
+- 限制允许的HTTP方法
 
-将您的代码添加到Git仓库可以使用以下命令：
+## 🗄️ 数据库配置
 
-`git add .`
+### 开发环境
+- 本地MongoDB实例
+- 连接池大小：10
+- 超时配置：5秒选择，45秒Socket
 
-提交更改并添加注释的命令如下：
+### 生产环境
+- 生产MongoDB实例
+- 连接池大小：50
+- 支持SSL连接
+- 更严格的超时配置
 
-`git commit -m "Initial commit"`
+## 📊 日志系统
 
-将更改推送到远程Git仓库：
+### 开发环境
+- 详细请求信息
+- 包含请求体内容
+- 响应时间记录
 
-`git push -u origin master`
+### 生产环境
+- 标准访问日志格式
+- 跳过健康检查日志
+- 支持日志级别配置
 
-这将把您的本地主分支（master）推送到远程Git仓库。
+## 🚀 性能优化
 
-通过以上步骤，在您的远程Git仓库上，您应该能够看到您的本地代码。
+- **响应压缩**: 支持gzip、deflate等压缩算法
+- **连接池管理**: 数据库连接复用
+- **请求限流**: 防止过载和滥用
+- **静态文件服务**: 高效的静态资源访问
 
-如果您需要在其他电脑上下载您的代码并提交分支，请先在该电脑上安装Git，并使用以下命令来克隆您的远程仓库：
+## 🔧 配置说明
 
-`git clone https://github.com/<your-username>/<your-repository>.git`
+### 应用配置 (`src/config/app.js`)
+- 端口和环境设置
+- CORS和限流配置
+- 安全和日志配置
 
-这将在您的本地计算机上创建一个新的文件夹，并克隆远程Git仓库到该文件夹中。之后，您就可以使用`git checkout -b <new-branch-name>`来创建一个新的分支并进行修改了。修改完成后，可以使用`git push origin <new-branch-name>`将这些更改推送到您的远程Git仓库中的新分支。
+### 数据库配置 (`src/config/database.js`)
+- 连接URI和选项
+- 环境相关配置
+- 连接池和超时设置
 
-## Project Setup
+## 📝 开发指南
 
-```sh
-npm install
+### 添加新路由
+1. 在 `src/routes/` 目录创建路由文件
+2. 在 `src/routes/index.js` 中注册路由
+3. 创建对应的控制器和服务
+
+### 添加新中间件
+1. 在 `src/middleware/` 目录创建中间件文件
+2. 在 `src/app.js` 中注册中间件
+3. 注意中间件的执行顺序
+
+### 错误处理
+- 使用 `src/utils/response.js` 中的统一响应函数
+- 异步函数使用 `asyncHandler` 包装
+- 全局错误处理在 `src/middleware/errorHandler.js`
+
+## 🚀 部署说明
+
+### 生产环境部署
+1. 设置正确的环境变量
+2. 配置MongoDB连接
+3. 启用所有安全配置
+4. 配置反向代理（如Nginx）
+5. 使用进程管理器（如PM2）
+
+### Docker部署
+```dockerfile
+FROM node:16-alpine
+WORKDIR /app
+COPY package*.json ./
+RUN npm ci --only=production
+COPY . .
+EXPOSE 3000
+CMD ["npm", "start"]
 ```
 
-### Compile and Hot-Reload for Development
+## 🧪 测试
 
-```sh
-npm run dev
+### 运行测试
+```bash
+npm test
 ```
 
-### Compile and Minify for Production
+### API测试
+使用Postman或其他API测试工具测试各个端点。
 
-```sh
-npm run build
-```
+## 📚 相关文档
 
-### mongo服务器启动命令汇总
+- [项目详细说明](./项目详细说明.md) - 完整的项目架构和代码说明
+- [踩坑记录](./踩坑记录.md) - 开发过程中遇到的问题和解决方案
+- [Node学习记录](./node学习记录.md) - Node.js学习笔记
 
-```js
-启动mongo服务
-mongod --fork --dbpath=/data/mongodb/data --logpath=/data/mongodb/log/mongo.log
-（首先使用上面的，下面的没运行成功 上面的是查询出的历史记录）
-sudo ./mongod --dbpath=/data/mongodb --logpath=/data/mongodb/log/mongod.log --fork
+## 🤝 贡献指南
 
-查看mongo服务
-ps -ef|grep mongod
-查看端口进程
-sudo netstat -tlnp
+1. Fork 项目
+2. 创建功能分支
+3. 提交更改
+4. 推送到分支
+5. 创建 Pull Request
 
+## 📄 许可证
 
-[root@iZ2zegs8fjen5oykese2vrZ bin]# ./mongod --dbpath /usr/local/mongodb/data/db --bind_ip 0.0.0.0
+本项目采用 MIT 许可证。
 
+## 📞 联系方式
 
-```
+如有问题或建议，请通过以下方式联系：
+- 提交 Issue
+- 创建 Pull Request
+- 发送邮件
 
-### mongo.conf
+## 🙏 致谢
 
+感谢所有为这个项目做出贡献的开发者和用户。
 
-
-```
-systemLog:
-   destination: file #日志输出方式。file/syslog,如果是file，需指定path，默认是输出到标准输出流中
-   path:  /usr/local/mongodb/mongod.log #日志路径
-   logAppend: true #启动时，日志追加在已有日志文件内还是备份旧日志后，创建新文件记录日志，默认false
-   
-net:
-  port: 27017 #监听端口，默认27017
-  bindIp： 0.0.0.0 #绑定监听的ip，设置为127.0.0.1时，只会监听本机
-  maxIncomingConnections: 65536 #最大连接数，可接受的连接数还受限于操作系统配置的最大连接数
-  wireObjectCheck: true #检验客户端的请求，防止错误的或无效BSON插入，多层文档嵌套的对象会有轻微性能影响，默认true
-  
-processManagement:
-  fork: true #后台运行
-	
-security:
-  authorization: disabled # enable/disabled # 开启客户端认证
-
-storage:
-  dbpath: /usr/local/mongodb/data/db # 数据库地址
-  journal:
-    enabled: true #启动journal,64位系统默认开启，32位默认关闭
-```
-
-启动
-`cd /usr/local/mongodb/bin`
-
-./mongo --config ../mongodb.conf
-
-
-
-直接启动加后台进程守护
-./mongod --dbpath /usr/local/mongodb/data/db --bind_ip 0.0.0.0 --logpath /usr/local/mongodb/mongod.log --fork

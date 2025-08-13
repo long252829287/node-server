@@ -1,0 +1,154 @@
+# 🏗️ 项目架构文档
+
+## 📁 目录结构
+
+```
+src/
+├── config/           # 配置文件
+│   ├── app.js       # 应用配置
+│   └── database.js  # 数据库配置
+├── controllers/      # 控制器层
+│   ├── douyuController.js
+│   └── huyaController.js
+├── services/         # 服务层
+│   ├── douyuService.js
+│   └── huyaService.js
+├── models/           # 数据模型
+├── middleware/       # 中间件
+│   ├── errorHandler.js
+│   ├── logger.js
+│   └── security.js
+├── routes/           # 路由
+│   ├── index.js
+│   ├── health.js
+│   ├── douyu.js
+│   └── huya.js
+├── validators/       # 验证器
+│   ├── common.js
+│   ├── douyuValidator.js
+│   └── huyaValidator.js
+├── utils/            # 工具函数
+│   ├── response.js
+│   └── asyncHandler.js
+├── app.js            # 应用主文件
+└── server.js         # 服务器启动文件
+```
+
+## 🔧 架构特点
+
+### 1. **分层架构 (Layered Architecture)**
+- **控制器层 (Controllers)**: 处理HTTP请求和响应
+- **服务层 (Services)**: 业务逻辑处理
+- **数据层 (Models)**: 数据访问和模型定义
+- **路由层 (Routes)**: 路由定义和中间件组合
+
+### 2. **中间件架构 (Middleware Architecture)**
+- **安全中间件**: Helmet, CORS, Rate Limiting
+- **日志中间件**: Morgan with custom tokens
+- **错误处理**: 统一的错误处理和响应格式
+- **验证中间件**: 请求参数验证
+
+### 3. **配置管理 (Configuration Management)**
+- 环境变量配置
+- 数据库连接配置
+- 安全策略配置
+- 日志配置
+
+### 4. **错误处理 (Error Handling)**
+- 全局错误处理中间件
+- 异步错误包装器
+- 统一的错误响应格式
+- 开发/生产环境错误信息控制
+
+### 5. **安全特性 (Security Features)**
+- Helmet 安全头
+- CORS 配置
+- 速率限制
+- 输入验证
+
+## 🚀 启动方式
+
+### 开发环境
+```bash
+npm run dev
+```
+
+### 生产环境
+```bash
+npm start
+```
+
+## 📊 API 端点
+
+### 健康检查
+- `GET /health` - 服务健康状态
+
+### 斗鱼直播
+- `POST /api/douyu/room` - 获取房间信息
+
+### 虎牙直播
+- `POST /api/huya/room` - 获取房间信息
+
+## 🔒 安全配置
+
+### 速率限制
+- 全局限制: 100 请求/15分钟
+- API限制: 50 请求/15分钟
+- 健康检查端点不受限制
+
+### CORS 配置
+- 支持跨域请求
+- 可配置允许的域名
+- 支持凭证
+
+## 📝 日志配置
+
+### 开发环境
+- 详细请求日志
+- 响应时间
+- 请求体内容
+
+### 生产环境
+- 标准访问日志
+- 错误日志
+- 性能监控
+
+## 🗄️ 数据库配置
+
+### MongoDB 连接
+- 连接池管理
+- 超时配置
+- 错误重连
+- 优雅关闭
+
+## 🧪 验证系统
+
+### 输入验证
+- 通用验证规则
+- 自定义验证模式
+- 错误信息本地化
+- 验证结果标准化
+
+## 🔄 错误处理流程
+
+1. **请求验证**: 验证器检查输入参数
+2. **业务处理**: 服务层执行业务逻辑
+3. **错误捕获**: 异步错误包装器捕获异常
+4. **错误格式化**: 统一错误响应格式
+5. **日志记录**: 记录错误信息和堆栈
+
+## 📈 性能优化
+
+- 响应压缩
+- 静态文件缓存
+- 数据库连接池
+- 请求超时控制
+- 内存泄漏防护
+
+## 🚨 监控和调试
+
+- 健康检查端点
+- 请求日志记录
+- 错误堆栈跟踪
+- 性能指标收集
+- 优雅关闭处理 
