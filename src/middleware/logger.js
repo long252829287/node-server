@@ -51,7 +51,7 @@ morgan.token('body', (req) => {
  * - :body - 请求体内容
  * 
  * 示例输出：
- * POST /api/douyu/room 200 45ms - {"rid":"123456"}
+ * POST /api/notes/notes 200 45ms - {"content":"..."}
  */
 const devFormat = ':method :url :status :response-time - :body';
 
@@ -72,7 +72,7 @@ const devFormat = ':method :url :status :response-time - :body';
  * - :user-agent - 用户代理字符串
  * 
  * 示例输出：
- * 192.168.1.1 - - [01/Jan/2024:00:00:00 +0000] "POST /api/douyu/room HTTP/1.1" 200 156 "-" "Mozilla/5.0..."
+ * 192.168.1.1 - - [01/Jan/2024:00:00:00 +0000] "GET /health HTTP/1.1" 200 156 "-" "Mozilla/5.0..."
  */
 const prodFormat = ':remote-addr - :remote-user [:date[clf]] ":method :url HTTP/:http-version" :status :res[content-length] ":referrer" ":user-agent"';
 

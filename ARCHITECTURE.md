@@ -8,11 +8,11 @@ src/
 │   ├── app.js       # 应用配置
 │   └── database.js  # 数据库配置
 ├── controllers/      # 控制器层
-│   ├── douyuController.js
-│   └── huyaController.js
+│   
+│   
 ├── services/         # 服务层
-│   ├── douyuService.js
-│   └── huyaService.js
+│   
+│   
 ├── models/           # 数据模型
 ├── middleware/       # 中间件
 │   ├── errorHandler.js
@@ -21,12 +21,12 @@ src/
 ├── routes/           # 路由
 │   ├── index.js
 │   ├── health.js
-│   ├── douyu.js
-│   └── huya.js
+│   
+│   
 ├── validators/       # 验证器
 │   ├── common.js
-│   ├── douyuValidator.js
-│   └── huyaValidator.js
+│   
+│   
 ├── utils/            # 工具函数
 │   ├── response.js
 │   └── asyncHandler.js
@@ -83,11 +83,9 @@ npm start
 ### 健康检查
 - `GET /health` - 服务健康状态
 
-### 斗鱼直播
-- `POST /api/douyu/room` - 获取房间信息
 
-### 虎牙直播
-- `POST /api/huya/room` - 获取房间信息
+
+
 
 ## 🔒 安全配置
 
