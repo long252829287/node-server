@@ -8,7 +8,7 @@ const express = require('express');
 const router = express.Router();
 
 // 导入各个功能模块的路由
-const healthRoutes = require('./health');
+
 const notesRoutes = require('./notes');
 const authRoutes = require('./auth');
 
@@ -38,12 +38,7 @@ router.get('/users', asyncHandler(async (req, res) => {
 
 // ==================== API路由映射表 ====================
 
-/**
- * 健康检查路由
- * 路径: /api/health
- * 功能: 服务器状态监控，不受限流影响
- */
-router.use('/health', healthRoutes);
+
 
 /**
  */
@@ -79,14 +74,7 @@ router.get('/', (req, res) => {
     version: '1.0.0',
     timestamp: new Date().toISOString(),
     endpoints: {
-      // 健康检查
-      health: {
-        path: '/api/health',
-        description: '服务器健康状态检查',
-        methods: ['GET'],
-        auth: false,
-        rateLimit: false
-      },
+
       
       
       
@@ -196,7 +184,7 @@ router.get('/status', async (req, res) => {
       message: 'API状态检查完成',
       timestamp: new Date().toISOString(),
       modules: {
-        health: { status: 'active', path: '/api/health' },
+        
         
         
         notes: { status: 'active', path: '/api/notes' },

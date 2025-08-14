@@ -65,7 +65,7 @@ const onListening = () => {
   const bind = typeof addr === 'string' ? `pipe ${addr}` : `port ${addr.port}`;
   console.log(`🚀 Server running on ${bind}`);
   console.log(`🌍 Environment: ${config.env}`);
-  console.log(`📊 Health check: http://localhost:${port}/health`);
+
 };
 
 /**

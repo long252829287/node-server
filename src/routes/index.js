@@ -8,14 +8,8 @@ const express = require('express');
 const router = express.Router();
 
 // 导入各个功能模块的路由
-const healthRoutes = require('./health');      // 健康检查路由
 const apiRoutes = require('./api');            // API统一管理路由
-
 // ==================== 路由注册 ====================
-
-// 健康检查路由 - 不受限流影响，用于监控和负载均衡
-// 路径: /health
-router.use('/health', healthRoutes);
 
 // API统一管理路由 - 所有API接口都在 /api 路径下
 // 路径: /api/*
@@ -30,7 +24,6 @@ router.get('/', (req, res) => {
     version: '1.0.0',
     // 可用的API端点列表
     endpoints: {
-      health: '/health',                    // 健康检查
       api: '/api',                         // API统一入口
       apiDocs: '/api',                     // API文档和端点列表
       apiStatus: '/api/status',            // API状态检查
@@ -39,7 +32,6 @@ router.get('/', (req, res) => {
     // 快速访问链接
     quickAccess: {
       apiList: '/api',                     // 查看所有API端点
-      healthCheck: '/health',              // 服务器健康状态
       apiStatus: '/api/status'             // API模块状态
     }
   });
@@ -54,7 +46,6 @@ router.use('*', (req, res) => {
     requestedPath: req.originalUrl,
     availablePaths: {
       root: '/',
-      health: '/health',
       api: '/api'
     },
     suggestion: '请访问 /api 查看所有可用的API端点'

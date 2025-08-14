@@ -72,7 +72,7 @@ const devFormat = ':method :url :status :response-time - :body';
  * - :user-agent - 用户代理字符串
  * 
  * 示例输出：
- * 192.168.1.1 - - [01/Jan/2024:00:00:00 +0000] "GET /health HTTP/1.1" 200 156 "-" "Mozilla/5.0..."
+ * 192.168.1.1 - - [01/Jan/2024:00:00:00 +0000] "GET /api/status HTTP/1.1" 200 156 "-" "Mozilla/5.0..."
  */
 const prodFormat = ':remote-addr - :remote-user [:date[clf]] ":method :url HTTP/:http-version" :status :res[content-length] ":referrer" ":user-agent"';
 
@@ -88,7 +88,7 @@ const logger = morgan(process.env.NODE_ENV === 'production' ? prodFormat : devFo
   skip: (req, res) => {
     // 跳过健康检查请求的日志记录
     // 避免健康检查产生过多日志，保持日志的清晰性
-    return req.url === '/health';
+  
   }
 });
 

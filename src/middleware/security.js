@@ -80,7 +80,7 @@ const rateLimiter = rateLimit({
   standardHeaders: true,                         // 启用标准限流响应头
   legacyHeaders: false,                          // 禁用旧版响应头
   // 跳过限流的条件：健康检查请求
-  skip: (req) => req.url === '/health'
+  
 });
 
 // ==================== API专用限流中间件 ====================
