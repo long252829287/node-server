@@ -39,6 +39,15 @@ router.get('/users', asyncHandler(async (req, res) => {
 }));
 
 // ==================== API路由映射表 ====================
+
+
+
+/**
+ */
+
+/**
+ */
+
 /**
  * 笔记管理API路由组
  * 基础路径: /api/notes
@@ -82,11 +91,11 @@ router.get('/', (req, res) => {
     timestamp: new Date().toISOString(),
     endpoints: {
 
-
-
-
-
-
+      
+      
+      
+      
+      
       // 笔记管理API
       notes: {
         path: '/api/notes',
@@ -122,7 +131,7 @@ router.get('/', (req, res) => {
           }
         }
       },
-
+      
       // 用户认证API
       auth: {
         path: '/api/auth',
@@ -188,85 +197,85 @@ router.get('/', (req, res) => {
             response: '删除成功确认'
           }
         },
-
-        // 学习记录API
-        study: {
-          path: '/api/study',
-          description: '学习科目和文件管理服务',
-          methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH'],
-          auth: true,
-          rateLimit: true,
-          routes: {
-            'POST /api/study/subjects': {
-              description: '创建学习科目',
-              params: { name: 'string', description: 'string?', color: 'string?', icon: 'string?' },
-              response: '科目信息'
-            },
-            'GET /api/study/subjects': {
-              description: '获取科目列表',
-              params: { page: 'number?', limit: 'number?', search: 'string?', sort: 'string?', order: 'string?' },
-              response: '科目列表和分页信息'
-            },
-            'GET /api/study/subjects/:id': {
-              description: '获取科目详情',
-              params: { id: 'string' },
-              response: '科目详细信息'
-            },
-            'PUT /api/study/subjects/:id': {
-              description: '更新科目',
-              params: { id: 'string', name: 'string?', description: 'string?', color: 'string?', icon: 'string?', isPinned: 'boolean?', sortWeight: 'number?' },
-              response: '更新后的科目信息'
-            },
-            'DELETE /api/study/subjects/:id': {
-              description: '删除科目',
-              params: { id: 'string' },
-              response: '删除成功确认'
-            },
-            'PATCH /api/study/subjects/:id/pin': {
-              description: '切换科目置顶状态',
-              params: { id: 'string' },
-              response: '置顶状态'
-            },
-            'POST /api/study/subjects/:id/files': {
-              description: '创建Markdown文件',
-              params: { id: 'string', fileName: 'string', title: 'string', content: 'string?' },
-              response: '文件信息'
-            },
-            'GET /api/study/subjects/:id/files': {
-              description: '获取科目下的文件列表',
-              params: { id: 'string', page: 'number?', limit: 'number?', search: 'string?', sort: 'string?', order: 'string?' },
-              response: '文件列表和分页信息'
-            },
-            'GET /api/study/subjects/:id/files/:fileName': {
-              description: '获取文件内容',
-              params: { id: 'string', fileName: 'string' },
-              response: '文件内容和信息'
-            },
-            'PUT /api/study/subjects/:id/files/:fileName': {
-              description: '更新文件',
-              params: { id: 'string', fileName: 'string', title: 'string?', content: 'string?', isPinned: 'boolean?', sortWeight: 'number?' },
-              response: '更新后的文件信息'
-            },
-            'DELETE /api/study/subjects/:id/files/:fileName': {
-              description: '删除文件',
-              params: { id: 'string', fileName: 'string' },
-              response: '删除成功确认'
-            },
-            'PATCH /api/study/subjects/:id/files/:fileName/pin': {
-              description: '切换文件置顶状态',
-              params: { id: 'string', fileName: 'string' },
-              response: '置顶状态'
-            },
-            'GET /api/study/stats': {
-              description: '获取学习记录统计信息',
-              params: '无',
-              response: '科目和文件统计'
-            }
-          }
-        }
++
++        // 学习记录API
++        study: {
++          path: '/api/study',
++          description: '学习科目和文件管理服务',
++          methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH'],
++          auth: true,
++          rateLimit: true,
++          routes: {
++            'POST /api/study/subjects': {
++              description: '创建学习科目',
++              params: { name: 'string', description: 'string?', color: 'string?', icon: 'string?' },
++              response: '科目信息'
++            },
++            'GET /api/study/subjects': {
++              description: '获取科目列表',
++              params: { page: 'number?', limit: 'number?', search: 'string?', sort: 'string?', order: 'string?' },
++              response: '科目列表和分页信息'
++            },
++            'GET /api/study/subjects/:id': {
++              description: '获取科目详情',
++              params: { id: 'string' },
++              response: '科目详细信息'
++            },
++            'PUT /api/study/subjects/:id': {
++              description: '更新科目',
++              params: { id: 'string', name: 'string?', description: 'string?', color: 'string?', icon: 'string?', isPinned: 'boolean?', sortWeight: 'number?' },
++              response: '更新后的科目信息'
++            },
++            'DELETE /api/study/subjects/:id': {
++              description: '删除科目',
++              params: { id: 'string' },
++              response: '删除成功确认'
++            },
++            'PATCH /api/study/subjects/:id/pin': {
++              description: '切换科目置顶状态',
++              params: { id: 'string' },
++              response: '置顶状态'
++            },
++            'POST /api/study/subjects/:id/files': {
++              description: '创建Markdown文件',
++              params: { id: 'string', fileName: 'string', title: 'string', content: 'string?' },
++              response: '文件信息'
++            },
++            'GET /api/study/subjects/:id/files': {
++              description: '获取科目下的文件列表',
++              params: { id: 'string', page: 'number?', limit: 'number?', search: 'string?', sort: 'string?', order: 'string?' },
++              response: '文件列表和分页信息'
++            },
++            'GET /api/study/subjects/:id/files/:fileName': {
++              description: '获取文件内容',
++              params: { id: 'string', fileName: 'string' },
++              response: '文件内容和信息'
++            },
++            'PUT /api/study/subjects/:id/files/:fileName': {
++              description: '更新文件',
++              params: { id: 'string', fileName: 'string', title: 'string?', content: 'string?', isPinned: 'boolean?', sortWeight: 'number?' },
++              response: '更新后的文件信息'
++            },
++            'DELETE /api/study/subjects/:id/files/:fileName': {
++              description: '删除文件',
++              params: { id: 'string', fileName: 'string' },
++              response: '删除成功确认'
++            },
++            'PATCH /api/study/subjects/:id/files/:fileName/pin': {
++              description: '切换文件置顶状态',
++              params: { id: 'string', fileName: 'string' },
++              response: '置顶状态'
++            },
++            'GET /api/study/stats': {
++              description: '获取学习记录统计信息',
++              params: '无',
++              response: '科目和文件统计'
++            }
++          }
++        }
       }
     },
-
+    
     // 全局配置信息
     config: {
       rateLimit: {
@@ -283,7 +292,7 @@ router.get('/', (req, res) => {
         https: 'recommended for production'
       }
     },
-
+    
     // 使用说明
     usage: {
       authentication: '需要认证的接口请在请求头中添加 Authorization: Bearer <token>',
@@ -308,9 +317,9 @@ router.get('/status', async (req, res) => {
       message: 'API状态检查完成',
       timestamp: new Date().toISOString(),
       modules: {
-
-
-
+        
+        
+        
         notes: { status: 'active', path: '/api/notes' },
         auth: { status: 'active', path: '/api/auth' },
         study: { status: 'active', path: '/api/study' }
@@ -320,7 +329,7 @@ router.get('/status', async (req, res) => {
       memory: process.memoryUsage(),
       environment: process.env.NODE_ENV || 'development'
     };
-
+    
     res.status(200).json(status);
   } catch (error) {
     res.status(500).json({
@@ -352,7 +361,7 @@ router.get('/stats', (req, res) => {
       topEndpoints: [] // 最受欢迎的端点
     }
   };
-
+  
   res.status(200).json(stats);
 });
 

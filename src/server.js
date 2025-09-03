@@ -85,18 +85,18 @@ const gracefulShutdown = (signal) => {
     
     console.log('✅ HTTP server closed');
     
-    // 关闭数据库连接
+    // 关闭数据库连接（Mongoose v7+ 不再支持回调）
     const mongoose = require('mongoose');
-    mongoose.connection.close((err) => {
-      if (err) {
-        console.error('❌ Error closing database connection:', err);
+    mongoose.connection.close()
+      .then(() => {
+        console.log('✅ Database connection closed');
+        console.log('👋 Server shutdown complete');
+        process.exit(0);
+      })
+      .catch((dbErr) => {
+        console.error('❌ Error closing database connection:', dbErr);
         process.exit(1);
-      }
-      
-      console.log('✅ Database connection closed');
-      console.log('👋 Server shutdown complete');
-      process.exit(0);
-    });
+      });
   });
   
   // 强制关闭超时保护（10秒后强制退出）
