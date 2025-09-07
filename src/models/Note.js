@@ -89,6 +89,16 @@ const noteSchema = new mongoose.Schema({
   lastEditedAt: {
     type: Date,
     default: Date.now
+  },
+
+  x_axis: {
+    type: Number,
+    default: 0,
+  },
+
+  y_axis: {
+    type: Number,
+    default: 0,
   }
 }, {
   // 自动添加时间戳

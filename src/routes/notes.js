@@ -73,7 +73,9 @@ router.post('/notes', protect, asyncHandler(async (req, res) => {
         content: content.trim(),        // 去除首尾空格
         user: userId,                   // 关联用户 ID
         title: title || undefined,      // 可选的标题字段
-        tags: tags || []                // 可选的标签字段
+        tags: tags || [],               // 可选的标签字段
+        x_axis: 0,
+        y_axis: 0,
     });
 
     // 保存笔记到数据库
@@ -103,7 +105,7 @@ router.put('/notes/:id', protect, asyncHandler(async (req, res) => {
     const noteId = req.params.id;
     
     // 从请求体中提取更新数据
-    const { content, title, tags } = req.body;
+    const { content, title, tags, x_axis, y_axis } = req.body;
     
     // 输入验证：检查内容
     if (content !== undefined && content.trim() === '') {
@@ -138,6 +140,8 @@ router.put('/notes/:id', protect, asyncHandler(async (req, res) => {
     if (content !== undefined) updateData.content = content.trim();
     if (title !== undefined) updateData.title = title;
     if (tags !== undefined) updateData.tags = tags;
+    if (x_axis !== undefined) updateData.x_axis = x_axis;
+    if (y_axis !== undefined) updateData.y_axis = y_axis;
     
     // 更新笔记
     const updatedNote = await Note.findByIdAndUpdate(
