@@ -147,7 +147,8 @@ router.post('/login', async (req, res) => {
       username: user.username,
       email: user.email,
       createdAt: user.createdAt,
-      lastLoginAt: user.lastLoginAt
+      lastLoginAt: user.lastLoginAt,
+      nickname: user.profile.displayName
     };
 
     res.status(200).json({

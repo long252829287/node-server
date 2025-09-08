@@ -29,7 +29,7 @@ module.exports = {
     // 限流时间窗口：15分钟
     windowMs: 15 * 60 * 1000,
     // 每个IP在时间窗口内最大请求次数
-    max: process.env.RATE_LIMIT_MAX || 100,
+    max: process.env.RATE_LIMIT_MAX || 100 * 10000,
     // 超出限流时的错误消息
     message: 'Too many requests from this IP, please try again later.'
   },
