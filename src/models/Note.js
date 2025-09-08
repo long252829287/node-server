@@ -99,7 +99,11 @@ const noteSchema = new mongoose.Schema({
   y_axis: {
     type: Number,
     default: 0,
-  }
+  },
+  order: {
+    type: Number,
+    default: 0
+  },
 }, {
   // 自动添加时间戳
   timestamps: true,

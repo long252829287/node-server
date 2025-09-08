@@ -105,7 +105,7 @@ router.put('/notes/:id', protect, asyncHandler(async (req, res) => {
     const noteId = req.params.id;
     
     // 从请求体中提取更新数据
-    const { content, title, tags, x_axis, y_axis } = req.body;
+    const { content, title, tags, x_axis, y_axis, order } = req.body;
     
     // 输入验证：检查内容
     if (content !== undefined && content.trim() === '') {
@@ -142,6 +142,7 @@ router.put('/notes/:id', protect, asyncHandler(async (req, res) => {
     if (tags !== undefined) updateData.tags = tags;
     if (x_axis !== undefined) updateData.x_axis = x_axis;
     if (y_axis !== undefined) updateData.y_axis = y_axis;
+    if (order !== undefined) updateData.order = order;
     
     // 更新笔记
     const updatedNote = await Note.findByIdAndUpdate(
