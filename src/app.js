@@ -27,6 +27,7 @@ const routes = require('./routes');
 
 // 创建Express应用实例
 const app = express();
+app.set('trust proxy', 1)
 
 // 连接数据库
 // 在应用启动时建立MongoDB连接
