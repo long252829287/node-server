@@ -13,6 +13,7 @@ const notesRoutes = require('./notes');
 const authRoutes = require('./auth');
 const credentialsRoutes = require('./credentials');
 const studyRoutes = require('./study');
+const sharedNotesRoutes = require('./sharedNotes');
 
 // ========== 用户列表接口 ========== //
 const User = require('../models/User');
@@ -23,20 +24,24 @@ const { asyncHandler } = require('../utils/asyncHandler');
  * @desc    查询所有用户，返回用户名与昵称
  * @access  公开（如需可改为仅管理员）
  */
-router.get('/users', asyncHandler(async (req, res) => {
-  const users = await User.find({}, { username: 1, 'profile.displayName': 1 })
-    .lean()
-    .exec();
-  const data = users.map(u => ({
-    username: u.username,
-    nickname: u.profile?.displayName || null
-  }));
-  res.json({
-    success: true,
-    message: '用户列表获取成功',
-    data
-  });
-}));
+router.get(
+  '/users',
+  asyncHandler(async (req, res) => {
+    const users = await User.find({}, { username: 1, 'profile.displayName': 1 })
+      .lean()
+      .exec();
+    const data = users.map((u) => ({
+      username: u.username,
+      nickname: u.profile?.displayName || null,
+      uid: u.uid,
+    }));
+    res.json({
+      success: true,
+      message: '用户列表获取成功',
+      data,
+    });
+  })
+);
 
 // ==================== API路由映射表 ====================
 /**
@@ -67,6 +72,13 @@ router.use('/credentials', credentialsRoutes);
  */
 router.use('/study', studyRoutes);
 
+/**
+ * 共享笔记API路由组
+ * 基础路径: /api/shared-notes
+ * 功能: 多人共享笔记本和四象限笔记项管理
+ */
+router.use('/shared-notes', sharedNotesRoutes);
+
 // ==================== API端点汇总 ====================
 
 /**
@@ -81,12 +93,6 @@ router.get('/', (req, res) => {
     version: '1.0.0',
     timestamp: new Date().toISOString(),
     endpoints: {
-
-
-
-
-
-
       // 笔记管理API
       notes: {
         path: '/api/notes',
@@ -98,29 +104,34 @@ router.get('/', (req, res) => {
           'GET /api/notes/notes': {
             description: '获取用户所有笔记',
             params: '无',
-            response: '笔记列表和数量'
+            response: '笔记列表和数量',
           },
           'POST /api/notes/notes': {
             description: '创建新笔记',
             params: { content: 'string', title: 'string?', tags: 'array?' },
-            response: '新创建的笔记信息'
+            response: '新创建的笔记信息',
           },
           'GET /api/notes/notes/:id': {
             description: '获取单个笔记详情',
             params: { id: 'string' },
-            response: '笔记详细信息'
+            response: '笔记详细信息',
           },
           'PUT /api/notes/notes/:id': {
             description: '更新笔记',
-            params: { id: 'string', content: 'string?', title: 'string?', tags: 'array?' },
-            response: '更新后的笔记信息'
+            params: {
+              id: 'string',
+              content: 'string?',
+              title: 'string?',
+              tags: 'array?',
+            },
+            response: '更新后的笔记信息',
           },
           'DELETE /api/notes/notes/:id': {
             description: '删除笔记',
             params: { id: 'string' },
-            response: '删除成功确认'
-          }
-        }
+            response: '删除成功确认',
+          },
+        },
       },
 
       // 用户认证API
@@ -133,20 +144,24 @@ router.get('/', (req, res) => {
         routes: {
           'POST /api/auth/register': {
             description: '用户注册（支持昵称nickname，自动生成唯一uid）',
-            params: { username: 'string', password: 'string', nickname: 'string?' },
-            response: '注册成功确认'
+            params: {
+              username: 'string',
+              password: 'string',
+              nickname: 'string?',
+            },
+            response: '注册成功确认',
           },
           'POST /api/auth/login': {
             description: '用户登录',
             params: { username: 'string', password: 'string' },
-            response: '登录令牌和用户信息'
+            response: '登录令牌和用户信息',
           },
           'POST /api/auth/logout': {
             description: '用户登出',
             params: '无',
-            response: '登出成功确认'
-          }
-        }
+            response: '登出成功确认',
+          },
+        },
       },
 
       // 凭据管理API
@@ -159,34 +174,45 @@ router.get('/', (req, res) => {
         routes: {
           'POST /api/credentials': {
             description: '创建凭据（密码加密存储）',
-            params: { account: 'string', password: 'string', website: 'string', notes: 'string?' },
-            response: '凭据基础信息（不含密码）'
+            params: {
+              account: 'string',
+              password: 'string',
+              website: 'string',
+              notes: 'string?',
+            },
+            response: '凭据基础信息（不含密码）',
           },
           'GET /api/credentials': {
             description: '获取凭据列表（不含密码）',
             params: '分页可后续扩展',
-            response: '凭据列表'
+            response: '凭据列表',
           },
           'GET /api/credentials/:id': {
             description: '获取单个凭据（不含密码）',
             params: { id: 'string' },
-            response: '凭据详情'
+            response: '凭据详情',
           },
           'POST /api/credentials/:id/reveal': {
             description: '解密并返回明文密码',
             params: { id: 'string' },
-            response: '{ password }'
+            response: '{ password }',
           },
           'PUT /api/credentials/:id': {
             description: '更新凭据（传入password时会重新加密）',
-            params: { id: 'string', account: 'string?', password: 'string?', website: 'string?', notes: 'string?' },
-            response: '更新后的凭据基础信息'
+            params: {
+              id: 'string',
+              account: 'string?',
+              password: 'string?',
+              website: 'string?',
+              notes: 'string?',
+            },
+            response: '更新后的凭据基础信息',
           },
           'DELETE /api/credentials/:id': {
             description: '删除凭据',
             params: { id: 'string' },
-            response: '删除成功确认'
-          }
+            response: '删除成功确认',
+          },
         },
 
         // 学习记录API
@@ -199,72 +225,186 @@ router.get('/', (req, res) => {
           routes: {
             'POST /api/study/subjects': {
               description: '创建学习科目',
-              params: { name: 'string', description: 'string?', color: 'string?', icon: 'string?' },
-              response: '科目信息'
+              params: {
+                name: 'string',
+                description: 'string?',
+                color: 'string?',
+                icon: 'string?',
+              },
+              response: '科目信息',
             },
             'GET /api/study/subjects': {
               description: '获取科目列表',
-              params: { page: 'number?', limit: 'number?', search: 'string?', sort: 'string?', order: 'string?' },
-              response: '科目列表和分页信息'
+              params: {
+                page: 'number?',
+                limit: 'number?',
+                search: 'string?',
+                sort: 'string?',
+                order: 'string?',
+              },
+              response: '科目列表和分页信息',
             },
             'GET /api/study/subjects/:id': {
               description: '获取科目详情',
               params: { id: 'string' },
-              response: '科目详细信息'
+              response: '科目详细信息',
             },
             'PUT /api/study/subjects/:id': {
               description: '更新科目',
-              params: { id: 'string', name: 'string?', description: 'string?', color: 'string?', icon: 'string?', isPinned: 'boolean?', sortWeight: 'number?' },
-              response: '更新后的科目信息'
+              params: {
+                id: 'string',
+                name: 'string?',
+                description: 'string?',
+                color: 'string?',
+                icon: 'string?',
+                isPinned: 'boolean?',
+                sortWeight: 'number?',
+              },
+              response: '更新后的科目信息',
             },
             'DELETE /api/study/subjects/:id': {
               description: '删除科目',
               params: { id: 'string' },
-              response: '删除成功确认'
+              response: '删除成功确认',
             },
             'PATCH /api/study/subjects/:id/pin': {
               description: '切换科目置顶状态',
               params: { id: 'string' },
-              response: '置顶状态'
+              response: '置顶状态',
             },
             'POST /api/study/subjects/:id/files': {
               description: '创建Markdown文件',
-              params: { id: 'string', fileName: 'string', title: 'string', content: 'string?' },
-              response: '文件信息'
+              params: {
+                id: 'string',
+                fileName: 'string',
+                title: 'string',
+                content: 'string?',
+              },
+              response: '文件信息',
             },
             'GET /api/study/subjects/:id/files': {
               description: '获取科目下的文件列表',
-              params: { id: 'string', page: 'number?', limit: 'number?', search: 'string?', sort: 'string?', order: 'string?' },
-              response: '文件列表和分页信息'
+              params: {
+                id: 'string',
+                page: 'number?',
+                limit: 'number?',
+                search: 'string?',
+                sort: 'string?',
+                order: 'string?',
+              },
+              response: '文件列表和分页信息',
             },
             'GET /api/study/subjects/:id/files/:fileName': {
               description: '获取文件内容',
               params: { id: 'string', fileName: 'string' },
-              response: '文件内容和信息'
+              response: '文件内容和信息',
             },
             'PUT /api/study/subjects/:id/files/:fileName': {
               description: '更新文件',
-              params: { id: 'string', fileName: 'string', title: 'string?', content: 'string?', isPinned: 'boolean?', sortWeight: 'number?' },
-              response: '更新后的文件信息'
+              params: {
+                id: 'string',
+                fileName: 'string',
+                title: 'string?',
+                content: 'string?',
+                isPinned: 'boolean?',
+                sortWeight: 'number?',
+              },
+              response: '更新后的文件信息',
             },
             'DELETE /api/study/subjects/:id/files/:fileName': {
               description: '删除文件',
               params: { id: 'string', fileName: 'string' },
-              response: '删除成功确认'
+              response: '删除成功确认',
             },
             'PATCH /api/study/subjects/:id/files/:fileName/pin': {
               description: '切换文件置顶状态',
               params: { id: 'string', fileName: 'string' },
-              response: '置顶状态'
+              response: '置顶状态',
             },
             'GET /api/study/stats': {
               description: '获取学习记录统计信息',
               params: '无',
-              response: '科目和文件统计'
-            }
-          }
-        }
-      }
+              response: '科目和文件统计',
+            },
+          },
+        },
+
+        // 共享笔记API
+        sharedNotes: {
+          path: '/api/shared-notes',
+          description: '多人共享笔记本和四象限笔记项管理',
+          methods: ['GET', 'POST', 'PUT', 'DELETE'],
+          auth: true,
+          rateLimit: true,
+          routes: {
+            'GET /api/shared-notes': {
+              description: '获取用户可访问的共享笔记本列表',
+              params: '无',
+              response: '共享笔记本列表和数量',
+            },
+            'POST /api/shared-notes': {
+              description: '创建新的共享笔记本',
+              params: { title: 'string', participants: 'array?' },
+              response: '新创建的共享笔记本信息',
+            },
+            'GET /api/shared-notes/:id': {
+              description: '获取指定共享笔记本信息',
+              params: { id: 'string' },
+              response: '共享笔记本详细信息',
+            },
+            'PUT /api/shared-notes/:id': {
+              description: '更新共享笔记本（仅创建者）',
+              params: {
+                id: 'string',
+                title: 'string?',
+                participants: 'array?',
+              },
+              response: '更新后的共享笔记本信息',
+            },
+            'DELETE /api/shared-notes/:id': {
+              description: '删除共享笔记本（仅创建者）',
+              params: { id: 'string' },
+              response: '删除成功确认',
+            },
+            'GET /api/shared-notes/:id/notes': {
+              description: '获取共享笔记本内的所有笔记项',
+              params: { id: 'string' },
+              response: '笔记项列表和数量',
+            },
+            'POST /api/shared-notes/:id/notes': {
+              description: '在共享笔记本中创建笔记项',
+              params: {
+                id: 'string',
+                content: 'string',
+                title: 'string?',
+                tags: 'array?',
+                x_axis: 'number?',
+                y_axis: 'number?',
+                order: 'number?',
+              },
+              response: '新创建的笔记项信息',
+            },
+            'PUT /api/shared-notes/notes/:noteId': {
+              description: '更新共享笔记项',
+              params: {
+                noteId: 'string',
+                title: 'string?',
+                content: 'string?',
+                tags: 'array?',
+                x_axis: 'number?',
+                y_axis: 'number?',
+                order: 'number?',
+              },
+              response: '更新后的笔记项信息',
+            },
+            'DELETE /api/shared-notes/notes/:noteId': {
+              description: '删除共享笔记项（仅创建者）',
+              params: { noteId: 'string' },
+              response: '删除成功确认',
+            },
+          },
+        },
+      },
     },
 
     // 全局配置信息
@@ -272,25 +412,26 @@ router.get('/', (req, res) => {
       rateLimit: {
         global: '100 requests per 15 minutes',
         api: '50 requests per 15 minutes',
-        auth: '20 requests per 15 minutes'
+        auth: '20 requests per 15 minutes',
       },
       cors: {
         origin: process.env.CORS_ORIGIN || '*',
-        credentials: true
+        credentials: true,
       },
       security: {
         helmet: 'enabled',
-        https: 'recommended for production'
-      }
+        https: 'recommended for production',
+      },
     },
 
     // 使用说明
     usage: {
-      authentication: '需要认证的接口请在请求头中添加 Authorization: Bearer <token>',
+      authentication:
+        '需要认证的接口请在请求头中添加 Authorization: Bearer <token>',
       rateLimit: '超出限流次数会返回 429 状态码',
       errorHandling: '所有错误响应都包含 success: false 和错误信息',
-      pagination: '列表接口支持分页，使用 page 和 limit 参数'
-    }
+      pagination: '列表接口支持分页，使用 page 和 limit 参数',
+    },
   });
 });
 
@@ -308,17 +449,14 @@ router.get('/status', async (req, res) => {
       message: 'API状态检查完成',
       timestamp: new Date().toISOString(),
       modules: {
-
-
-
         notes: { status: 'active', path: '/api/notes' },
         auth: { status: 'active', path: '/api/auth' },
-        study: { status: 'active', path: '/api/study' }
+        study: { status: 'active', path: '/api/study' },
       },
       database: 'connected', // 这里可以添加实际的数据库连接状态检查
       uptime: process.uptime(),
       memory: process.memoryUsage(),
-      environment: process.env.NODE_ENV || 'development'
+      environment: process.env.NODE_ENV || 'development',
     };
 
     res.status(200).json(status);
@@ -326,7 +464,7 @@ router.get('/status', async (req, res) => {
     res.status(500).json({
       success: false,
       message: '状态检查失败',
-      error: process.env.NODE_ENV === 'development' ? error.message : undefined
+      error: process.env.NODE_ENV === 'development' ? error.message : undefined,
     });
   }
 });
@@ -349,12 +487,12 @@ router.get('/stats', (req, res) => {
       activeConnections: 0, // 活跃连接数
       averageResponseTime: 0, // 平均响应时间
       errorRate: 0, // 错误率
-      topEndpoints: [] // 最受欢迎的端点
-    }
+      topEndpoints: [], // 最受欢迎的端点
+    },
   };
 
   res.status(200).json(stats);
 });
 
 // 导出路由实例
-module.exports = router; 
+module.exports = router;
