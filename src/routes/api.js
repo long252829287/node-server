@@ -12,7 +12,6 @@ const router = express.Router();
 const notesRoutes = require('./notes');
 const authRoutes = require('./auth');
 const credentialsRoutes = require('./credentials');
-const studyRoutes = require('./study');
 const sharedNotesRoutes = require('./sharedNotes');
 
 // ========== 用户列表接口 ========== //
@@ -64,13 +63,6 @@ router.use('/auth', authRoutes);
  * 功能: 账号/密码/网站 的加密存储与管理
  */
 router.use('/credentials', credentialsRoutes);
-
-/**
- * 学习记录API路由组
- * 基础路径: /api/study
- * 功能: 学习科目和文件的管理
- */
-router.use('/study', studyRoutes);
 
 /**
  * 共享笔记API路由组
