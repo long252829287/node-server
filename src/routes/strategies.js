@@ -11,7 +11,7 @@ const Champion = require('../models/Champion');
 const Item = require('../models/Item');
 const { asyncHandler } = require('../utils/asyncHandler');
 const { successResponse, errorResponse } = require('../utils/response');
-const { authMiddleware } = require('../middleware/authMiddleware');
+const { protect: authMiddleware } = require('../middleware/authMiddleware');
 
 /**
  * @route   GET /api/strategies

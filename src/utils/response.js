@@ -196,6 +196,48 @@ const tooManyRequests = (res, message = 'Too many requests', details = null) => 
   return error(res, message, 429, details);
 };
 
+// ==================== 兼容性响应函数 ====================
+
+/**
+ * 兼容性成功响应函数
+ * 返回成功响应的JSON对象（不直接发送响应）
+ *
+ * @param {string} message - 成功消息
+ * @param {*} data - 响应数据
+ * @returns {Object} 标准化的成功响应JSON对象
+ */
+const successResponse = (message = 'Success', data = null) => {
+  return {
+    success: true,
+    message,
+    data,
+    timestamp: new Date().toISOString()
+  };
+};
+
+/**
+ * 兼容性错误响应函数
+ * 返回错误响应的JSON对象（不直接发送响应）
+ *
+ * @param {string} message - 错误消息
+ * @param {*} details - 错误详情，仅在开发环境显示
+ * @returns {Object} 标准化的错误响应JSON对象
+ */
+const errorResponse = (message = 'Internal Server Error', details = null) => {
+  const response = {
+    success: false,
+    message,
+    timestamp: new Date().toISOString()
+  };
+
+  // 仅在开发环境显示错误详情，生产环境隐藏敏感信息
+  if (details && process.env.NODE_ENV === 'development') {
+    response.details = details;
+  }
+
+  return response;
+};
+
 // ==================== 模块导出 ====================
 
 // 导出所有响应函数
@@ -205,7 +247,7 @@ module.exports = {
   created,           // 创建成功响应
   updated,           // 更新成功响应
   deleted,           // 删除成功响应
-  
+
   // 错误响应函数
   error,             // 通用错误响应
   badRequest,        // 400 请求错误
@@ -214,5 +256,9 @@ module.exports = {
   notFound,          // 404 未找到
   conflict,          // 409 冲突
   validationError,   // 422 验证失败
-  tooManyRequests    // 429 请求过多
+  tooManyRequests,   // 429 请求过多
+
+  // 兼容性响应函数（返回JSON对象）
+  successResponse,   // 成功响应JSON对象
+  errorResponse      // 错误响应JSON对象
 }; 
