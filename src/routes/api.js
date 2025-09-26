@@ -13,6 +13,9 @@ const notesRoutes = require('./notes');
 const authRoutes = require('./auth');
 const credentialsRoutes = require('./credentials');
 const sharedNotesRoutes = require('./sharedNotes');
+const championsRoutes = require('./champions');
+const itemsRoutes = require('./items');
+const strategiesRoutes = require('./strategies');
 
 // ========== 用户列表接口 ========== //
 const User = require('../models/User');
@@ -70,6 +73,27 @@ router.use('/credentials', credentialsRoutes);
  * 功能: 多人共享笔记本和四象限笔记项管理
  */
 router.use('/shared-notes', sharedNotesRoutes);
+
+/**
+ * 英雄查询API路由组
+ * 基础路径: /api/champions
+ * 功能: 英雄联盟英雄数据查询
+ */
+router.use('/champions', championsRoutes);
+
+/**
+ * 装备查询API路由组
+ * 基础路径: /api/items
+ * 功能: 英雄联盟装备数据查询
+ */
+router.use('/items', itemsRoutes);
+
+/**
+ * 攻略管理API路由组
+ * 基础路径: /api/strategies
+ * 功能: 英雄出装攻略的CRUD管理
+ */
+router.use('/strategies', strategiesRoutes);
 
 // ==================== API端点汇总 ====================
 
