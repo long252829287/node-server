@@ -1,14 +1,15 @@
 {
   "permissions": {
     "allow": [
-      "Bash(npm run dev:*)",
-      "Bash(node:*)",
-      "Bash(netstat:*)",
-      "Bash(findstr:*)",
-      "Bash(taskkill:*)",
-      "Bash(npx kill-port:*)",
-      "Bash(npm start)",
-      "Bash(curl http://localhost:611/api/champions)"
+      "Bash(Select-Object Name, FullName)",
+      "Bash(curl http://localhost:3000/api/champions)",
+      "Bash(curl http://localhost:3000/api/runes)",
+      "Bash(curl \"http://localhost:3000/api/items?limit=5\")",
+      "Bash(python:*)",
+      "Bash(curl -s \"http://localhost:3000/api/items/stats/summary\")",
+      "Bash(curl -s \"http://localhost:3000/api/champions\")",
+      "Bash(curl -s \"http://localhost:3000/api/items\")",
+      "Bash(curl -s \"http://localhost:3000/api/runes\")"
     ],
     "deny": [],
     "ask": []

@@ -42,8 +42,6 @@ router.get(
       mythic,
       legendary,
       boots,
-      page = 1,
-      limit = 50,
       sort = 'name',
       order = 'asc'
     } = req.query;
@@ -96,11 +94,6 @@ router.get(
       query.isBoots = boots === 'true';
     }
 
-    // 分页参数
-    const pageNum = Math.max(1, parseInt(page));
-    const limitNum = Math.min(100, Math.max(1, parseInt(limit)));
-    const skip = (pageNum - 1) * limitNum;
-
     // 排序参数
     const validSortFields = ['name', 'gold.total', 'depth', 'createdAt'];
     const sortField = validSortFields.includes(sort) ? sort : 'name';
@@ -109,31 +102,14 @@ router.get(
 
     try {
       // 执行查询
-      const [items, total] = await Promise.all([
-        Item.find(query)
-          .select('riotId name description plaintext image gold tags maps depth isMythic isLegendary isBoots version')
-          .sort(sortObj)
-          .skip(skip)
-          .limit(limitNum)
-          .lean(),
-        Item.countDocuments(query)
-      ]);
-
-      // 计算分页信息
-      const totalPages = Math.ceil(total / limitNum);
-      const hasNext = pageNum < totalPages;
-      const hasPrev = pageNum > 1;
+      const items = await Item.find(query)
+        .select('riotId name description plaintext image gold tags maps depth isMythic isLegendary isBoots version')
+        .sort(sortObj)
+        .lean();
 
       res.json(successResponse('装备列表获取成功', {
         items,
-        pagination: {
-          currentPage: pageNum,
-          totalPages,
-          totalCount: total,
-          limit: limitNum,
-          hasNext,
-          hasPrev
-        },
+        total: items.length,
         filters: {
           search,
           tags: tags ? (Array.isArray(tags) ? tags : tags.split(',')) : null,

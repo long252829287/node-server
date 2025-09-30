@@ -9,6 +9,7 @@ const mongoose = require('mongoose');
 const Strategy = require('../models/Strategy');
 const Champion = require('../models/Champion');
 const Item = require('../models/Item');
+const Rune = require('../models/Rune');
 const { asyncHandler } = require('../utils/asyncHandler');
 const { successResponse, errorResponse } = require('../utils/response');
 const { protect: authMiddleware } = require('../middleware/authMiddleware');
@@ -27,8 +28,6 @@ router.get(
       creatorId,
       search,
       isRecommended,
-      page = 1,
-      limit = 20,
       sort = 'createdAt',
       order = 'desc'
     } = req.query;
@@ -71,11 +70,6 @@ router.get(
       query.isRecommended = true;
     }
 
-    // 分页参数
-    const pageNum = Math.max(1, parseInt(page));
-    const limitNum = Math.min(50, Math.max(1, parseInt(limit)));
-    const skip = (pageNum - 1) * limitNum;
-
     // 排序参数
     const validSortFields = ['createdAt', 'updatedAt', 'stats.viewCount', 'stats.favoriteCount', 'stats.likeCount'];
     const sortField = validSortFields.includes(sort) ? sort : 'createdAt';
@@ -83,31 +77,17 @@ router.get(
     const sortObj = { [sortField]: sortOrder };
 
     try {
-      const [strategies, total] = await Promise.all([
-        Strategy.find(query)
-          .populate('champion', 'key name images.square')
-          .populate('items.item', 'name image gold.total')
-          .populate('creator', 'username profile.displayName')
-          .select('-items.item.description') // 减少数据传输
-          .sort(sortObj)
-          .skip(skip)
-          .limit(limitNum)
-          .lean(),
-        Strategy.countDocuments(query)
-      ]);
-
-      const totalPages = Math.ceil(total / limitNum);
+      const strategies = await Strategy.find(query)
+        .populate('champion', 'key name images.square')
+        .populate('items.item', 'name image gold.total')
+        .populate('creator', 'username profile.displayName')
+        .select('-items.item.description') // 减少数据传输
+        .sort(sortObj)
+        .lean();
 
       res.json(successResponse('攻略列表获取成功', {
         strategies,
-        pagination: {
-          currentPage: pageNum,
-          totalPages,
-          totalCount: total,
-          limit: limitNum,
-          hasNext: pageNum < totalPages,
-          hasPrev: pageNum > 1
-        }
+        total: strategies.length
       }));
 
     } catch (error) {
@@ -129,6 +109,7 @@ router.post(
       title,
       championId,
       items,
+      runes,
       mapType = 'sr',
       description,
       tags = []
@@ -183,11 +164,49 @@ router.post(
         return res.status(400).json(errorResponse('装备位置不能重复'));
       }
 
+      // 验证并构建符文配置
+      let runeConfig = null;
+      if (runes && runes.primaryTreeId && runes.secondaryTreeId) {
+        // 验证符文配置
+        const primaryRuneIds = runes.primaryRunes?.map(r => r.id) || [];
+        const secondaryRuneIds = runes.secondaryRunes?.map(r => r.id) || [];
+
+        const validation = await Rune.validateRuneConfig(
+          runes.primaryTreeId,
+          primaryRuneIds,
+          runes.secondaryTreeId,
+          secondaryRuneIds
+        );
+
+        if (!validation.valid) {
+          return res.status(400).json(errorResponse(validation.error));
+        }
+
+        // 获取符文树信息
+        const [primaryTree, secondaryTree] = await Promise.all([
+          Rune.getTreeById(runes.primaryTreeId),
+          Rune.getTreeById(runes.secondaryTreeId)
+        ]);
+
+        // 构建符文配置
+        runeConfig = {
+          primaryTreeId: primaryTree.id,
+          primaryTreeName: primaryTree.name,
+          primaryTreeIcon: primaryTree.icon,
+          primaryRunes: runes.primaryRunes || [],
+          secondaryTreeId: secondaryTree.id,
+          secondaryTreeName: secondaryTree.name,
+          secondaryTreeIcon: secondaryTree.icon,
+          secondaryRunes: runes.secondaryRunes || []
+        };
+      }
+
       // 创建攻略
       const strategy = new Strategy({
         title,
         champion: championId,
         items: strategyItems,
+        runes: runeConfig,
         mapType,
         description,
         tags,
@@ -262,6 +281,7 @@ router.put(
       title,
       championId,
       items,
+      runes,
       mapType,
       description,
       tags,
@@ -338,6 +358,47 @@ router.put(
         strategy.items = strategyItems;
       }
 
+      // 更新符文配置
+      if (runes !== undefined) {
+        if (runes && runes.primaryTreeId && runes.secondaryTreeId) {
+          // 验证符文配置
+          const primaryRuneIds = runes.primaryRunes?.map(r => r.id) || [];
+          const secondaryRuneIds = runes.secondaryRunes?.map(r => r.id) || [];
+
+          const validation = await Rune.validateRuneConfig(
+            runes.primaryTreeId,
+            primaryRuneIds,
+            runes.secondaryTreeId,
+            secondaryRuneIds
+          );
+
+          if (!validation.valid) {
+            return res.status(400).json(errorResponse(validation.error));
+          }
+
+          // 获取符文树信息
+          const [primaryTree, secondaryTree] = await Promise.all([
+            Rune.getTreeById(runes.primaryTreeId),
+            Rune.getTreeById(runes.secondaryTreeId)
+          ]);
+
+          // 构建符文配置
+          strategy.runes = {
+            primaryTreeId: primaryTree.id,
+            primaryTreeName: primaryTree.name,
+            primaryTreeIcon: primaryTree.icon,
+            primaryRunes: runes.primaryRunes || [],
+            secondaryTreeId: secondaryTree.id,
+            secondaryTreeName: secondaryTree.name,
+            secondaryTreeIcon: secondaryTree.icon,
+            secondaryRunes: runes.secondaryRunes || []
+          };
+        } else {
+          // 清除符文配置
+          strategy.runes = undefined;
+        }
+      }
+
       await strategy.save();
 
       // 加载关联数据并返回
@@ -403,43 +464,15 @@ router.get(
   '/champion/:championKey',
   asyncHandler(async (req, res) => {
     const { championKey } = req.params;
-    const { mapType, page = 1, limit = 10 } = req.query;
+    const { mapType } = req.query;
 
     try {
-      // 分页参数
-      const pageNum = Math.max(1, parseInt(page));
-      const limitNum = Math.min(20, Math.max(1, parseInt(limit)));
-      const skip = (pageNum - 1) * limitNum;
-
-      const strategies = await Strategy.getByChampion(championKey, mapType)
-        .skip(skip)
-        .limit(limitNum);
-
-      const total = await Strategy.countDocuments({
-        championKey,
-        status: 'published',
-        isPublic: true,
-        ...(mapType ? {
-          $or: [
-            { mapType },
-            { mapType: 'both' }
-          ]
-        } : {})
-      });
-
-      const totalPages = Math.ceil(total / limitNum);
+      const strategies = await Strategy.getByChampion(championKey, mapType);
 
       res.json(successResponse('英雄攻略获取成功', {
         championKey,
         strategies,
-        pagination: {
-          currentPage: pageNum,
-          totalPages,
-          totalCount: total,
-          limit: limitNum,
-          hasNext: pageNum < totalPages,
-          hasPrev: pageNum > 1
-        }
+        total: strategies.length
       }));
 
     } catch (error) {
@@ -505,36 +538,13 @@ router.get(
   '/user/:userId',
   asyncHandler(async (req, res) => {
     const { userId } = req.params;
-    const { page = 1, limit = 10 } = req.query;
 
     try {
-      // 分页参数
-      const pageNum = Math.max(1, parseInt(page));
-      const limitNum = Math.min(20, Math.max(1, parseInt(limit)));
-      const skip = (pageNum - 1) * limitNum;
-
-      const strategies = await Strategy.getByCreator(userId, false)
-        .skip(skip)
-        .limit(limitNum);
-
-      const total = await Strategy.countDocuments({
-        creator: userId,
-        status: 'published',
-        isPublic: true
-      });
-
-      const totalPages = Math.ceil(total / limitNum);
+      const strategies = await Strategy.getByCreator(userId, false);
 
       res.json(successResponse('用户攻略获取成功', {
         strategies,
-        pagination: {
-          currentPage: pageNum,
-          totalPages,
-          totalCount: total,
-          limit: limitNum,
-          hasNext: pageNum < totalPages,
-          hasPrev: pageNum > 1
-        }
+        total: strategies.length
       }));
 
     } catch (error) {
@@ -552,7 +562,7 @@ router.get(
   '/my',
   authMiddleware,
   asyncHandler(async (req, res) => {
-    const { page = 1, limit = 10, status } = req.query;
+    const { status } = req.query;
 
     try {
       // 构建查询条件
@@ -561,34 +571,15 @@ router.get(
         query.status = status;
       }
 
-      // 分页参数
-      const pageNum = Math.max(1, parseInt(page));
-      const limitNum = Math.min(20, Math.max(1, parseInt(limit)));
-      const skip = (pageNum - 1) * limitNum;
-
-      const [strategies, total] = await Promise.all([
-        Strategy.find(query)
-          .populate('champion', 'key name images.square')
-          .populate('items.item', 'name image gold.total')
-          .sort({ updatedAt: -1 })
-          .skip(skip)
-          .limit(limitNum)
-          .lean(),
-        Strategy.countDocuments(query)
-      ]);
-
-      const totalPages = Math.ceil(total / limitNum);
+      const strategies = await Strategy.find(query)
+        .populate('champion', 'key name images.square')
+        .populate('items.item', 'name image gold.total')
+        .sort({ updatedAt: -1 })
+        .lean();
 
       res.json(successResponse('我的攻略获取成功', {
         strategies,
-        pagination: {
-          currentPage: pageNum,
-          totalPages,
-          totalCount: total,
-          limit: limitNum,
-          hasNext: pageNum < totalPages,
-          hasPrev: pageNum > 1
-        }
+        total: strategies.length
       }));
 
     } catch (error) {

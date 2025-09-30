@@ -26,8 +26,6 @@ router.get(
     const {
       search,
       tags,
-      page = 1,
-      limit = 50,
       sort = 'name',
       order = 'asc'
     } = req.query;
@@ -50,11 +48,6 @@ router.get(
       query.tags = { $in: tagArray };
     }
 
-    // 分页参数
-    const pageNum = Math.max(1, parseInt(page));
-    const limitNum = Math.min(100, Math.max(1, parseInt(limit)));
-    const skip = (pageNum - 1) * limitNum;
-
     // 排序参数
     const sortField = ['name', 'createdAt', 'key'].includes(sort) ? sort : 'name';
     const sortOrder = order === 'desc' ? -1 : 1;
@@ -62,31 +55,14 @@ router.get(
 
     try {
       // 执行查询
-      const [champions, total] = await Promise.all([
-        Champion.find(query)
-          .select('riotId key name title description images tags stats.difficulty version')
-          .sort(sortObj)
-          .skip(skip)
-          .limit(limitNum)
-          .lean(),
-        Champion.countDocuments(query)
-      ]);
-
-      // 计算分页信息
-      const totalPages = Math.ceil(total / limitNum);
-      const hasNext = pageNum < totalPages;
-      const hasPrev = pageNum > 1;
+      const champions = await Champion.find(query)
+        .select('riotId key name title description images tags stats.difficulty version')
+        .sort(sortObj)
+        .lean();
 
       res.json(successResponse('英雄列表获取成功', {
         champions,
-        pagination: {
-          currentPage: pageNum,
-          totalPages,
-          totalCount: total,
-          limit: limitNum,
-          hasNext,
-          hasPrev
-        }
+        total: champions.length
       }));
 
     } catch (error) {

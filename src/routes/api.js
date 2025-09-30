@@ -15,6 +15,7 @@ const credentialsRoutes = require('./credentials');
 const sharedNotesRoutes = require('./sharedNotes');
 const championsRoutes = require('./champions');
 const itemsRoutes = require('./items');
+const runesRoutes = require('./runes');
 const strategiesRoutes = require('./strategies');
 
 // ========== 用户列表接口 ========== //
@@ -87,6 +88,13 @@ router.use('/champions', championsRoutes);
  * 功能: 英雄联盟装备数据查询
  */
 router.use('/items', itemsRoutes);
+
+/**
+ * 符文查询API路由组
+ * 基础路径: /api/runes
+ * 功能: 英雄联盟符文数据查询
+ */
+router.use('/runes', runesRoutes);
 
 /**
  * 攻略管理API路由组

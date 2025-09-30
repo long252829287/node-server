@@ -61,6 +61,90 @@ const strategySchema = new mongoose.Schema({
     }
   }],
 
+  // 符文配置
+  runes: {
+    // 主系符文树 ID
+    primaryTreeId: {
+      type: String,
+      trim: true
+    },
+    // 主系符文树名称 (冗余字段)
+    primaryTreeName: {
+      type: String,
+      trim: true
+    },
+    // 主系符文树图标 (冗余字段)
+    primaryTreeIcon: {
+      type: String,
+      trim: true
+    },
+    // 主系符文 ID 列表 (4个：每层1个)
+    primaryRunes: [{
+      // 符文 ID
+      id: {
+        type: String,
+        required: true
+      },
+      // 符文名称 (冗余字段)
+      name: {
+        type: String,
+        required: true
+      },
+      // 符文图标 (冗余字段)
+      icon: {
+        type: String,
+        required: true
+      },
+      // 所在槽位 (0-3)
+      slotIndex: {
+        type: Number,
+        required: true,
+        min: 0,
+        max: 3
+      }
+    }],
+    // 副系符文树 ID
+    secondaryTreeId: {
+      type: String,
+      trim: true
+    },
+    // 副系符文树名称 (冗余字段)
+    secondaryTreeName: {
+      type: String,
+      trim: true
+    },
+    // 副系符文树图标 (冗余字段)
+    secondaryTreeIcon: {
+      type: String,
+      trim: true
+    },
+    // 副系符文 ID 列表 (2个：从第2-4层选)
+    secondaryRunes: [{
+      // 符文 ID
+      id: {
+        type: String,
+        required: true
+      },
+      // 符文名称 (冗余字段)
+      name: {
+        type: String,
+        required: true
+      },
+      // 符文图标 (冗余字段)
+      icon: {
+        type: String,
+        required: true
+      },
+      // 所在槽位 (1-3)
+      slotIndex: {
+        type: Number,
+        required: true,
+        min: 1,
+        max: 3
+      }
+    }]
+  },
+
   // 适用地图
   mapType: {
     type: String,
@@ -169,6 +253,44 @@ strategySchema.path('items').validate(function(items) {
   const uniquePositions = [...new Set(positions)];
   return positions.length === uniquePositions.length;
 }, '装备位置不能重复');
+
+// 验证器：符文主系数量
+strategySchema.path('runes.primaryRunes').validate(function(primaryRunes) {
+  // 如果有主系符文，必须是4个
+  if (primaryRunes && primaryRunes.length > 0) {
+    return primaryRunes.length === 4;
+  }
+  // 如果没有主系符文，则允许为空
+  return true;
+}, '主系符文必须选择4个（每层1个）');
+
+// 验证器：符文副系数量
+strategySchema.path('runes.secondaryRunes').validate(function(secondaryRunes) {
+  // 如果有副系符文，必须是2个
+  if (secondaryRunes && secondaryRunes.length > 0) {
+    return secondaryRunes.length === 2;
+  }
+  // 如果没有副系符文，则允许为空
+  return true;
+}, '副系符文必须选择2个');
+
+// 验证器：符文主系槽位唯一性
+strategySchema.path('runes.primaryRunes').validate(function(primaryRunes) {
+  if (!primaryRunes || primaryRunes.length === 0) return true;
+
+  const slotIndexes = primaryRunes.map(r => r.slotIndex);
+  const uniqueSlots = [...new Set(slotIndexes)];
+  return slotIndexes.length === uniqueSlots.length;
+}, '主系符文槽位不能重复');
+
+// 验证器：符文副系槽位唯一性
+strategySchema.path('runes.secondaryRunes').validate(function(secondaryRunes) {
+  if (!secondaryRunes || secondaryRunes.length === 0) return true;
+
+  const slotIndexes = secondaryRunes.map(r => r.slotIndex);
+  const uniqueSlots = [...new Set(slotIndexes)];
+  return slotIndexes.length === uniqueSlots.length;
+}, '副系符文槽位不能重复');
 
 // 虚拟字段：装备总价值
 strategySchema.virtual('totalValue').get(function() {

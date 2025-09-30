@@ -82,7 +82,7 @@ const itemSchema = new mongoose.Schema({
       'Slow', 'Boots', 'Trinket', 'Consumable',
       'Active', 'Stealth', 'Vision', 'NonbootsMovement',
       'MagicResist', 'AbilityHaste', 'Omnivamp', 'GoldPer',
-      'Lane', 'Jungle'
+      'Lane', 'Jungle', 'LifeSteal', 'Tenacity', 'Aura'
     ]
   }],
 
