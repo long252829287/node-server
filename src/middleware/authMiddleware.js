@@ -24,7 +24,7 @@ const protect = async (req, res, next) => {
 
     // 检查令牌是否存在
     if (!token) {
-      return unauthorized(res, '访问令牌缺失，请先登录');
+      return unauthorized(res, '未登录，请先登录');
     }
 
     try {
@@ -51,11 +51,11 @@ const protect = async (req, res, next) => {
     } catch (jwtError) {
       // JWT验证失败
       if (jwtError.name === 'TokenExpiredError') {
-        return unauthorized(res, '访问令牌已过期，请重新登录');
+        return unauthorized(res, '登录已过期，请重新登录');
       } else if (jwtError.name === 'JsonWebTokenError') {
-        return unauthorized(res, '无效的访问令牌');
+        return unauthorized(res, '无效的登录身份');
       } else {
-        return unauthorized(res, '令牌验证失败');
+        return unauthorized(res, '登录失败');
       }
     }
 

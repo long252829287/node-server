@@ -90,7 +90,7 @@ const rateLimiter = rateLimit({
  * 
  * 限流策略：
  * - 时间窗口：15分钟
- * - 最大请求数：每个IP 15分钟内最多50次API请求
+ * - 最大请求数：每个IP 15分钟内最多500次API请求
  * - 比全局限流更严格，专门保护API端点
  * 
  * 使用场景：
@@ -98,8 +98,8 @@ const rateLimiter = rateLimit({
  * - 健康检查等非API路由不受影响
  */
 const apiRateLimiter = rateLimit({
-  windowMs: 15 * 60 * 1000,                     // 15分钟时间窗口
-  max: 50,                                       // 每个IP最多50次请求
+  windowMs: 15* 60 * 1000,                     // 15分钟时间窗口
+  max: 500,                                       // 每个IP最多50次请求
   message: {
     success: false,
     error: {

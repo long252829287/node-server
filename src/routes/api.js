@@ -17,6 +17,7 @@ const championsRoutes = require('./champions');
 const itemsRoutes = require('./items');
 const runesRoutes = require('./runes');
 const strategiesRoutes = require('./strategies');
+const hexRoutes = require('./hex');
 
 // ========== 用户列表接口 ========== //
 const User = require('../models/User');
@@ -102,6 +103,13 @@ router.use('/runes', runesRoutes);
  * 功能: 英雄出装攻略的CRUD管理
  */
 router.use('/strategies', strategiesRoutes);
+
+/**
+ * Hextech增幅器API路由组
+ * 基础路径: /api/hextech
+ * 功能: 海克斯增幅器列表
+ */
+router.use('/hex', hexRoutes);
 
 // ==================== API端点汇总 ====================
 
