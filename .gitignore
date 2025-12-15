@@ -18,6 +18,9 @@ yarn.lock
 /cypress/videos/
 /cypress/screenshots/
 
+# Runtime cache (LOL sync fallback)
+data/cache/
+
 # Editor directories and files
 .vscode/
 .vscode/*

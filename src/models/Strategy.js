@@ -148,10 +148,17 @@ const strategySchema = new mongoose.Schema({
   // 适用地图
   mapType: {
     type: String,
-    enum: ['sr', 'aram', 'both'],
+    enum: ['sr', 'aram', 'hex_brawl', 'both'],
     default: 'sr',
     required: true
   },
+
+  // 强化选择（存 augmentId，避免 ref 不稳定/跨环境麻烦）
+  augmentIds: [{
+    type: String,
+    trim: true,
+    index: true
+  }],
 
   // 攻略描述/说明
   description: {
@@ -239,6 +246,7 @@ strategySchema.index({ isRecommended: 1, status: 1 });
 
 // 复合索引
 strategySchema.index({ championKey: 1, mapType: 1, isPublic: 1, status: 1 });
+strategySchema.index({ championKey: 1, mapType: 1, createdAt: -1 });
 
 // 验证器：装备数量不超过6个
 strategySchema.path('items').validate(function(items) {
@@ -291,6 +299,12 @@ strategySchema.path('runes.secondaryRunes').validate(function(secondaryRunes) {
   const uniqueSlots = [...new Set(slotIndexes)];
   return slotIndexes.length === uniqueSlots.length;
 }, '副系符文槽位不能重复');
+
+// 验证器：强化数量限制（MVP：做一个保守上限，避免异常数据）
+strategySchema.path('augmentIds').validate(function(augmentIds) {
+  if (!augmentIds) return true;
+  return augmentIds.length <= 20;
+}, '强化数量不能超过20个');
 
 // 虚拟字段：装备总价值
 strategySchema.virtual('totalValue').get(function() {
@@ -430,7 +444,8 @@ strategySchema.statics.search = function(keyword) {
 strategySchema.pre('save', function(next) {
   if (this.isNew && !this.title) {
     const mapName = this.mapType === 'sr' ? '召唤师峡谷' :
-                   this.mapType === 'aram' ? '大乱斗' : '通用';
+                   this.mapType === 'aram' ? '大乱斗' :
+                   this.mapType === 'hex_brawl' ? '海克斯大乱斗' : '通用';
     this.title = `${this.championName} ${mapName}出装`;
   }
   next();

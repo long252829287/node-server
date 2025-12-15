@@ -37,6 +37,14 @@ const championSchema = new mongoose.Schema({
     maxlength: [200, '英雄称号不能超过200个字符']
   },
 
+  // 英雄别名/原名/可搜索关键词（用于兼容“万花通灵/妮蔻”这类不同叫法）
+  // 例：["妮蔻","万花通灵","Neeko","518"]
+  aliases: [{
+    type: String,
+    trim: true,
+    maxlength: [200, '别名不能超过200个字符']
+  }],
+
   // 英雄描述
   description: {
     type: String,
@@ -105,7 +113,7 @@ const championSchema = new mongoose.Schema({
 });
 
 // 索引
-championSchema.index({ name: 'text', title: 'text' });
+championSchema.index({ name: 'text', title: 'text', aliases: 'text' });
 championSchema.index({ tags: 1 });
 championSchema.index({ version: 1 });
 

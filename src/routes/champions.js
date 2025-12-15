@@ -8,6 +8,48 @@ const router = express.Router();
 const Champion = require('../models/Champion');
 const { asyncHandler } = require('../utils/asyncHandler');
 const { successResponse, errorResponse } = require('../utils/response');
+const path = require('path');
+const { readFirstJson } = require('../utils/localJsonCache');
+
+const fallbackChampionData = () => {
+  const data = readFirstJson([
+    path.join(process.cwd(), 'data/cache/champions.json'),
+    path.join(__dirname, '../assets/json/lol/champion.json'),
+  ]);
+
+  const list = Array.isArray(data?.champions) ? data.champions : Array.isArray(data) ? data : [];
+  const version = data?.version || data?.patchVersion || 'local';
+
+  // 兼容旧本地 JSON（仅包含 image/name/id）
+  const normalized = list
+    .map((c) => {
+      if (!c) return null;
+
+      if (c.riotId && c.key) return c;
+
+      const riotId = c.id !== undefined ? String(c.id) : c.riotId ? String(c.riotId) : '';
+      const name = c.name ? String(c.name) : '';
+      const image = c.image ? String(c.image) : c.images?.square ? String(c.images.square) : '';
+      if (!riotId && !name) return null;
+
+      return {
+        riotId: riotId || name,
+        key: riotId || name,
+        name,
+        title: '',
+        aliases: [name].filter(Boolean),
+        description: '',
+        images: { square: image, loading: '', splash: '', passive: '' },
+        tags: [],
+        stats: { difficulty: 5 },
+        version,
+        isEnabled: true,
+      };
+    })
+    .filter(Boolean);
+
+  return { champions: normalized, version };
+};
 
 /**
  * @swagger
@@ -84,7 +126,8 @@ router.get(
       query.$or = [
         { name: { $regex: search, $options: 'i' } },
         { title: { $regex: search, $options: 'i' } },
-        { key: { $regex: search, $options: 'i' } }
+        { key: { $regex: search, $options: 'i' } },
+        { aliases: { $regex: search, $options: 'i' } },
       ];
     }
 
@@ -100,18 +143,76 @@ router.get(
     const sortObj = { [sortField]: sortOrder };
 
     try {
-      // 执行查询
       const champions = await Champion.find(query)
-        .select('riotId key name title description images tags stats.difficulty version')
+        .select('riotId key name title aliases description images tags stats.difficulty version')
         .sort(sortObj)
         .lean();
 
-      res.json(successResponse('英雄列表获取成功', {
-        champions,
-        total: champions.length
-      }));
+      if (champions.length > 0) {
+        return res.json(
+          successResponse('英雄列表获取成功', {
+            champions,
+            total: champions.length,
+          })
+        );
+      }
 
+      const fallback = fallbackChampionData();
+      let fallbackList = fallback.champions;
+
+      if (search) {
+        const re = new RegExp(search, 'i');
+        fallbackList = fallbackList.filter((c) => re.test(c.name || '') || re.test(c.title || '') || re.test(c.key || ''));
+      }
+
+      if (tags) {
+        const tagArray = Array.isArray(tags) ? tags : String(tags).split(',');
+        fallbackList = fallbackList.filter((c) => (c.tags || []).some((t) => tagArray.includes(t)));
+      }
+
+      fallbackList = [...fallbackList].sort((a, b) => {
+        const field = sortField;
+        const av = (a?.[field] ?? '').toString();
+        const bv = (b?.[field] ?? '').toString();
+        return sortOrder === -1 ? bv.localeCompare(av) : av.localeCompare(bv);
+      });
+
+      res.json(
+        successResponse('英雄列表获取成功（本地回退）', {
+          champions: fallbackList,
+          total: fallbackList.length,
+        })
+      );
     } catch (error) {
+      const fallback = fallbackChampionData();
+      if (fallback.champions.length > 0) {
+        let fallbackList = fallback.champions;
+
+        if (search) {
+          const re = new RegExp(search, 'i');
+          fallbackList = fallbackList.filter((c) => re.test(c.name || '') || re.test(c.title || '') || re.test(c.key || ''));
+        }
+
+        if (tags) {
+          const tagArray = Array.isArray(tags) ? tags : String(tags).split(',');
+          fallbackList = fallbackList.filter((c) => (c.tags || []).some((t) => tagArray.includes(t)));
+        }
+
+        fallbackList = [...fallbackList].sort((a, b) => {
+          const field = sortField;
+          const av = (a?.[field] ?? '').toString();
+          const bv = (b?.[field] ?? '').toString();
+          return sortOrder === -1 ? bv.localeCompare(av) : av.localeCompare(bv);
+        });
+
+        return res.json(
+          successResponse('英雄列表获取成功（本地回退）', {
+            champions: fallbackList,
+            total: fallbackList.length,
+          })
+        );
+      }
+
       res.status(500).json(errorResponse('获取英雄列表失败', error.message));
     }
   })
@@ -134,7 +235,8 @@ router.get(
         $or: [
           { _id: identifier },
           { key: identifier },
-          { riotId: identifier }
+          { riotId: identifier },
+          { aliases: identifier },
         ],
         isEnabled: true
       };
@@ -142,6 +244,13 @@ router.get(
       const champion = await Champion.findOne(query).lean();
 
       if (!champion) {
+        const fallback = fallbackChampionData();
+        const hit = fallback.champions.find(
+          (c) => c.riotId === identifier || c.key === identifier || c.name === identifier
+        );
+        if (hit) {
+          return res.json(successResponse('英雄详情获取成功（本地回退）', hit));
+        }
         return res.status(404).json(errorResponse('英雄不存在'));
       }
 
@@ -150,6 +259,11 @@ router.get(
     } catch (error) {
       if (error.name === 'CastError') {
         return res.status(404).json(errorResponse('英雄不存在'));
+      }
+      const fallback = fallbackChampionData();
+      const hit = fallback.champions.find((c) => c.riotId === identifier || c.key === identifier || c.name === identifier);
+      if (hit) {
+        return res.json(successResponse('英雄详情获取成功（本地回退）', hit));
       }
       res.status(500).json(errorResponse('获取英雄详情失败', error.message));
     }

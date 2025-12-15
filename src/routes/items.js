@@ -6,8 +6,71 @@
 const express = require('express');
 const router = express.Router();
 const Item = require('../models/Item');
+const HexItem = require('../models/HexItem');
 const { asyncHandler } = require('../utils/asyncHandler');
 const { successResponse, errorResponse } = require('../utils/response');
+const path = require('path');
+const { readFirstJson } = require('../utils/localJsonCache');
+
+const resolveItemMode = (value) => {
+  if (!value) return 'standard';
+  const v = String(value).trim();
+  if (v === 'hex_brawl' || v === 'hex') return 'hex_brawl';
+  return 'standard';
+};
+
+const fallbackItemData = (mode) => {
+  const cacheFile =
+    mode === 'hex_brawl' ? path.join(process.cwd(), 'data/cache/items.hex_brawl.json') : path.join(process.cwd(), 'data/cache/items.standard.json');
+
+  const data = readFirstJson([cacheFile, path.join(__dirname, '../assets/json/lol/items.json')]);
+  const list = Array.isArray(data?.items) ? data.items : Array.isArray(data) ? data : [];
+  const version = data?.version || data?.patchVersion || 'local';
+
+  // 兼容旧本地 JSON（opgg 结构：id/icon/price/tags）
+  const normalized = list
+    .map((i) => {
+      if (!i) return null;
+      if (i.riotId && i.gold && i.maps) return i;
+
+      const riotId = i.id !== undefined ? String(i.id) : i.riotId ? String(i.riotId) : '';
+      const name = i.name ? String(i.name) : '';
+      const icon = i.icon ? String(i.icon) : i.image ? String(i.image) : '';
+      if (!riotId || !name) return null;
+
+      return {
+        riotId,
+        name,
+        description: i.description || '',
+        plaintext: i.plaintext || '',
+        image: icon,
+        gold: {
+          total: i.price || i.gold?.total || 0,
+          base: i.gold?.base || 0,
+          sell: i.gold?.sell || 0,
+          purchasable: true,
+        },
+        tags: i.tags || [],
+        maps:
+          mode === 'hex_brawl'
+            ? { sr: false, ha: false, aram: true }
+            : { sr: true, ha: true, aram: true },
+        depth: i.depth || 1,
+        from: i.from || [],
+        into: i.into || [],
+        specialRecipe: i.specialRecipe || 0,
+        group: i.group || '',
+        isMythic: Boolean(i.isMythic),
+        isLegendary: Boolean(i.isLegendary),
+        isBoots: Boolean((i.tags || []).includes('Boots')),
+        version,
+        isEnabled: true,
+      };
+    })
+    .filter(Boolean);
+
+  return { items: normalized, version };
+};
 
 /**
  * @route   GET /api/items
@@ -35,6 +98,7 @@ router.get(
       search,
       tags,
       map,
+      mode,
       minPrice,
       maxPrice,
       depth,
@@ -45,6 +109,9 @@ router.get(
       sort = 'name',
       order = 'asc'
     } = req.query;
+
+    const resolvedMode = resolveItemMode(mode);
+    const Model = resolvedMode === 'hex_brawl' ? HexItem : Item;
 
     // 构建查询条件
     const query = { isEnabled: true };
@@ -63,9 +130,13 @@ router.get(
       query.tags = { $in: tagArray };
     }
 
-    // 地图过滤
+    // 模式/地图过滤
     if (map && ['sr', 'ha', 'aram'].includes(map)) {
       query[`maps.${map}`] = true;
+    } else if (resolvedMode === 'standard') {
+      query['maps.sr'] = true;
+    } else if (resolvedMode === 'hex_brawl') {
+      query['maps.aram'] = true;
     }
 
     // 价格范围过滤
@@ -102,28 +173,102 @@ router.get(
 
     try {
       // 执行查询
-      const items = await Item.find(query)
+      const items = await Model.find(query)
         .select('riotId name description plaintext image gold tags maps depth isMythic isLegendary isBoots version')
         .sort(sortObj)
         .lean();
 
-      res.json(successResponse('装备列表获取成功', {
-        items,
-        total: items.length,
-        filters: {
-          search,
-          tags: tags ? (Array.isArray(tags) ? tags : tags.split(',')) : null,
-          map,
-          priceRange: { min: minPrice, max: maxPrice },
-          depth,
-          purchasable,
-          mythic,
-          legendary,
-          boots
+      if (items.length > 0) {
+        return res.json(
+          successResponse('装备列表获取成功', {
+            items,
+            total: items.length,
+            filters: {
+              search,
+              tags: tags ? (Array.isArray(tags) ? tags : tags.split(',')) : null,
+              map,
+              mode: resolvedMode,
+              priceRange: { min: minPrice, max: maxPrice },
+              depth,
+              purchasable,
+              mythic,
+              legendary,
+              boots,
+            },
+          })
+        );
+      }
+
+      const fallback = fallbackItemData(resolvedMode);
+      // 在回退数据上复用相同过滤逻辑（MVP：仅实现 search/tags/map/price/depth/boots 等常用过滤）
+      let fallbackList = fallback.items;
+
+      if (search) {
+        const re = new RegExp(search, 'i');
+        fallbackList = fallbackList.filter((i) => re.test(i.name || '') || re.test(i.plaintext || ''));
+      }
+      if (tags) {
+        const tagArray = Array.isArray(tags) ? tags : String(tags).split(',');
+        fallbackList = fallbackList.filter((i) => (i.tags || []).some((t) => tagArray.includes(t)));
+      }
+      if (map && ['sr', 'ha', 'aram'].includes(map)) {
+        fallbackList = fallbackList.filter((i) => i.maps?.[map] === true);
+      } else if (resolvedMode === 'standard') {
+        fallbackList = fallbackList.filter((i) => i.maps?.sr === true);
+      } else if (resolvedMode === 'hex_brawl') {
+        fallbackList = fallbackList.filter((i) => i.maps?.aram === true);
+      }
+      if (minPrice) fallbackList = fallbackList.filter((i) => (i.gold?.total || 0) >= parseInt(minPrice));
+      if (maxPrice) fallbackList = fallbackList.filter((i) => (i.gold?.total || 0) <= parseInt(maxPrice));
+      if (depth) fallbackList = fallbackList.filter((i) => (i.depth || 0) === parseInt(depth));
+      if (boots !== undefined) fallbackList = fallbackList.filter((i) => Boolean(i.isBoots) === (boots === 'true'));
+      if (mythic !== undefined) fallbackList = fallbackList.filter((i) => Boolean(i.isMythic) === (mythic === 'true'));
+      if (legendary !== undefined) fallbackList = fallbackList.filter((i) => Boolean(i.isLegendary) === (legendary === 'true'));
+      if (purchasable !== undefined) {
+        fallbackList = fallbackList.filter((i) => Boolean(i.gold?.purchasable) === (purchasable === 'true'));
+      }
+
+      fallbackList = [...fallbackList].sort((a, b) => {
+        const av = sortField === 'gold.total' ? (a.gold?.total || 0) : a?.[sortField] || '';
+        const bv = sortField === 'gold.total' ? (b.gold?.total || 0) : b?.[sortField] || '';
+        if (typeof av === 'number' || typeof bv === 'number') {
+          return sortOrder === -1 ? (bv - av) : (av - bv);
         }
-      }));
+        return sortOrder === -1 ? String(bv).localeCompare(String(av)) : String(av).localeCompare(String(bv));
+      });
+
+      res.json(
+        successResponse('装备列表获取成功（本地回退）', {
+          items: fallbackList,
+          total: fallbackList.length,
+          filters: {
+            search,
+            tags: tags ? (Array.isArray(tags) ? tags : tags.split(',')) : null,
+            map,
+            mode: resolvedMode,
+            priceRange: { min: minPrice, max: maxPrice },
+            depth,
+            purchasable,
+            mythic,
+            legendary,
+            boots,
+          },
+        })
+      );
 
     } catch (error) {
+      const resolvedMode = resolveItemMode(req.query.mode);
+      const fallback = fallbackItemData(resolvedMode);
+      if (fallback.items.length > 0) {
+        return res.json(
+          successResponse('装备列表获取成功（本地回退）', {
+            items: fallback.items,
+            total: fallback.items.length,
+            filters: { mode: resolvedMode },
+          })
+        );
+      }
+
       res.status(500).json(errorResponse('获取装备列表失败', error.message));
     }
   })
@@ -139,6 +284,8 @@ router.get(
   '/:identifier',
   asyncHandler(async (req, res) => {
     const { identifier } = req.params;
+    const resolvedMode = resolveItemMode(req.query.mode);
+    const Model = resolvedMode === 'hex_brawl' ? HexItem : Item;
 
     try {
       // 尝试多种方式查找装备
@@ -150,16 +297,21 @@ router.get(
         isEnabled: true
       };
 
-      const item = await Item.findOne(query).lean();
+      const item = await Model.findOne(query).lean();
 
       if (!item) {
+        const fallback = fallbackItemData(resolvedMode);
+        const hit = fallback.items.find((i) => i.riotId === identifier);
+        if (hit) {
+          return res.json(successResponse('装备详情获取成功（本地回退）', hit));
+        }
         return res.status(404).json(errorResponse('装备不存在'));
       }
 
       // 如果有合成路径，获取合成材料信息
       let fromItems = [];
       if (item.from && item.from.length > 0) {
-        fromItems = await Item.find({
+        fromItems = await Model.find({
           riotId: { $in: item.from },
           isEnabled: true
         }).select('riotId name image gold.total').lean();
@@ -168,7 +320,7 @@ router.get(
       // 如果有升级路径，获取升级装备信息
       let intoItems = [];
       if (item.into && item.into.length > 0) {
-        intoItems = await Item.find({
+        intoItems = await Model.find({
           riotId: { $in: item.into },
           isEnabled: true
         }).select('riotId name image gold.total').lean();
@@ -183,6 +335,11 @@ router.get(
     } catch (error) {
       if (error.name === 'CastError') {
         return res.status(404).json(errorResponse('装备不存在'));
+      }
+      const fallback = fallbackItemData(resolvedMode);
+      const hit = fallback.items.find((i) => i.riotId === identifier);
+      if (hit) {
+        return res.json(successResponse('装备详情获取成功（本地回退）', hit));
       }
       res.status(500).json(errorResponse('获取装备详情失败', error.message));
     }

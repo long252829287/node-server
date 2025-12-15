@@ -17,7 +17,9 @@ const championsRoutes = require('./champions');
 const itemsRoutes = require('./items');
 const runesRoutes = require('./runes');
 const strategiesRoutes = require('./strategies');
-const hexRoutes = require('./hex');
+const augmentRoutes = require('./augment')
+const augmentsRoutes = require('./augments')
+const hexRoutes = require('./hex')
 
 // ========== 用户列表接口 ========== //
 const User = require('../models/User');
@@ -105,11 +107,24 @@ router.use('/runes', runesRoutes);
 router.use('/strategies', strategiesRoutes);
 
 /**
- * Hextech增幅器API路由组
- * 基础路径: /api/hextech
+ * Augmenttech强化API路由组
+ * 基础路径: /api/augment
  * 功能: 海克斯增幅器列表
  */
-router.use('/hex', hexRoutes);
+router.use('/augment', augmentRoutes)
+
+/**
+ * 兼容旧海克斯接口
+ * 基础路径: /api/hex
+ */
+router.use('/hex', hexRoutes)
+
+/**
+ * 强化池API路由组（DB 版本）
+ * 基础路径: /api/augments
+ * 功能: 强化池查询与详情
+ */
+router.use('/augments', augmentsRoutes)
 
 // ==================== API端点汇总 ====================
 

@@ -423,6 +423,183 @@
   }
   ```
 
+## LOL 数据接口（MVP）
+
+> 说明：本模块返回统一响应结构 `{ success, message, data, timestamp }`。
+
+### 1. 英雄（Champions）
+
+#### 1.1 获取英雄列表
+- **接口**: `GET /api/champions`
+- **描述**: 获取英雄列表（优先读数据库；数据库无数据或异常时回退本地 JSON 缓存）
+- **认证**: 无需认证
+- **请求参数（query）**:
+  - `search`（可选）: 搜索关键词（匹配 `name/title/key`）
+  - `tags`（可选）: 标签过滤（多个用逗号分隔，如 `Mage,Assassin`）
+  - `sort`（可选）: `name | createdAt | key`
+  - `order`（可选）: `asc | desc`
+ - **说明**:
+   - 英雄支持 `aliases`（别名/原名/英文ID/数字key）字段参与搜索，例如可用 “妮蔻/万花通灵/Neeko/518” 搜索到同一英雄
+
+#### 1.2 获取英雄详情
+- **接口**: `GET /api/champions/:identifier`
+- **描述**: 按 `identifier` 获取英雄详情（支持 `_id/key/riotId`；回退本地 JSON 时支持 `key/riotId/name`）
+- **认证**: 无需认证
+
+### 2. 装备（Items）
+
+#### 2.1 获取装备列表（支持标准/海克斯模式）
+- **接口**: `GET /api/items`
+- **描述**: 获取装备列表（优先读数据库；数据库无数据或异常时回退本地 JSON 缓存）
+- **认证**: 无需认证
+- **请求参数（query）**:
+  - `mode`（可选）: `standard | hex_brawl`（默认 `standard`）
+    - `standard`：标准装备池（默认限制 `maps.sr=true`）
+    - `hex_brawl`：海克斯模式装备池（默认限制 `maps.aram=true`，数据源与集合独立）
+  - `map`（可选）: `sr | ha | aram`（存在时优先按 map 过滤）
+  - 其他参数与原接口保持一致：`search/tags/minPrice/maxPrice/depth/purchasable/mythic/legendary/boots/sort/order`
+
+#### 2.2 获取装备详情（支持标准/海克斯模式）
+- **接口**: `GET /api/items/:identifier`
+- **描述**: 获取装备详情；可通过 query `mode=hex_brawl` 指定查海克斯装备池
+- **认证**: 无需认证
+
+### 3. 强化池（Augments，DB版本）
+
+#### 1.1 获取强化池列表
+- **接口**: `GET /api/augments`
+- **描述**: 按模式/关键词/标签/稀有度筛选强化池
+- **认证**: 无需认证
+- **请求参数（query）**:
+  - `mode`（可选）: 模式筛选（如 `hex_brawl`）
+  - `search`（可选）: 关键词（匹配 `name/description`）
+  - `tags`（可选）: 标签过滤（多个用逗号分隔）
+  - `tier`（可选）: 稀有度/层级（如 `1/2/3` 或 `common/rare`）
+  - `isActive`（可选）: 是否启用（默认 `true`）
+  - `limit`（可选）: 返回数量（默认 `50`，最大 `200`）
+  - `offset`（可选）: 偏移量（默认 `0`）
+- **响应示例**:
+  ```json
+  {
+    "success": true,
+    "message": "强化池获取成功",
+    "data": {
+      "augments": [
+        {
+          "augmentId": "WarmupRoutine",
+          "name": "热身动作",
+          "description": "获得召唤师技能...",
+          "icon": "https://.../warmuproutine_large.png",
+          "tier": "0",
+          "tags": [],
+          "modes": ["hex_brawl"],
+          "patchVersion": "14.24",
+          "isActive": true,
+          "createdAt": "2024-01-01T00:00:00.000Z",
+          "updatedAt": "2024-01-01T00:00:00.000Z"
+        }
+      ],
+      "total": 1
+    },
+    "timestamp": "2024-01-01T00:00:00.000Z"
+  }
+  ```
+
+#### 1.2 获取强化详情
+- **接口**: `GET /api/augments/:augmentId`
+- **描述**: 按业务唯一ID（`augmentId`）获取强化详情
+- **认证**: 无需认证
+- **路径参数**:
+  - `augmentId`: 强化业务ID（例如：`WarmupRoutine`）
+
+### 4. 强化池（Augment，旧JSON版本，兼容）
+
+#### 2.1 获取海克斯列表（静态JSON）
+- **接口**: `GET /api/augment`
+- **描述**: 读取本地 `src/assets/json/lol/augment.json` 返回海克斯列表（不支持筛选）
+- **认证**: 无需认证
+
+#### 2.2 兼容旧接口
+- **接口**: `GET /api/hex`
+- **描述**: 兼容旧路径，行为与 `GET /api/augment` 一致
+- **认证**: 无需认证
+
+### 5. 攻略（Strategies）扩展：支持 mode + augmentIds
+
+> 兼容说明：原有 `mapType` 参数继续可用；新增 `mode` 与其等价，优先使用 `mode`。
+> 权限说明：
+> - 需要登录：创建攻略、更新攻略、删除攻略、查询“我的攻略”
+> - 无需登录：查看攻略列表/详情、按英雄/热门/推荐筛选、查看装备/强化等 LOL 数据接口
+
+#### 3.1 获取攻略列表（支持 mode 筛选）
+- **接口**: `GET /api/strategies`
+- **新增 query 参数**:
+  - `mode`（可选）: `sr | aram | hex_brawl | both`
+- **示例**: `GET /api/strategies?championKey=Ahri&mode=hex_brawl`
+
+#### 3.2 创建攻略（支持保存强化选择）
+- **接口**: `POST /api/strategies`
+- **认证**: 需要登录
+- **新增 body 字段**:
+  - `mode`（可选）: `sr | aram | hex_brawl | both`（不传则沿用 `mapType`）
+  - `augmentIds`（可选）: `string[]`（存 `augmentId`，会去重/trim）
+
+#### 3.3 更新攻略（支持保存强化选择）
+- **接口**: `PUT /api/strategies/:id`
+- **认证**: 需要登录（且必须为创建者本人）
+- **新增 body 字段**:
+  - `mode`（可选）: `sr | aram | hex_brawl | both`（不传则沿用 `mapType`）
+  - `augmentIds`（可选）: `string[]`（存 `augmentId`，会去重/trim）
+
+#### 3.3.1 删除攻略
+- **接口**: `DELETE /api/strategies/:id`
+- **认证**: 需要登录（且必须为创建者本人）
+
+#### 3.3.2 查询我的攻略
+- **接口**: `GET /api/strategies/my`
+- **认证**: 需要登录
+
+#### 3.3.3 点赞攻略
+- **接口**: `POST /api/strategies/:id/like`
+- **认证**: 无需登录
+
+#### 3.4 可选的 augmentIds 存在性校验（推荐）
+- 默认关闭：仅做类型校验与基础清洗
+- 开启方式：设置环境变量 `AUGMENT_VALIDATE_EXISTS=true`
+- 开启后：`create/update` 会校验 `augmentIds` 是否存在于强化池中（并按当前 `mode/mapType` 匹配 `modes`）
+
+### 6. LOL 数据更新（自动同步/手动同步）
+
+> 说明：
+> - 强化（Augments）：Riot 官方开发者 API/Data Dragon 暂无稳定公开的“强化静态列表”接口；本项目采用 CommunityDragon（arena）作为数据源（可配置）。
+> - 英雄/标准装备：使用 Riot Data Dragon。
+> - 海克斯模式装备：使用 CommunityDragon（rcp items）补齐更多装备定义。
+
+#### 6.1 手动同步（推荐用于首次导入/排查）
+- **命令**:
+  - `npm run sync:champions`
+  - `npm run sync:items`（可选 `--mode standard|hex_brawl|both`）
+  - `npm run sync:augments`
+- **可选参数**:
+  - `--mode hex_brawl`
+  - `--patch 14.24`（写入 `patchVersion`）
+  - `--deactivate-old`（同 mode 下，其他 patchVersion 置为 `isActive=false`，便于版本切换）
+  - `--source <url>`（自定义数据源 URL）
+
+#### 6.2 定时同步（72小时一次）
+- **默认关闭**：避免在无网络/开发环境下启动即请求外网
+- **开启方式**：设置环境变量 `LOL_SYNC_ENABLED=true`（或分别开启：`AUGMENTS_SYNC_ENABLED/CHAMPIONS_SYNC_ENABLED/ITEMS_SYNC_ENABLED`）
+- **相关环境变量**：
+  - `LOL_LOCALE=zh_CN`（Data Dragon 语言）
+  - `AUGMENTS_SYNC_MODE=hex_brawl`
+  - `AUGMENTS_SOURCE_URL=<url>`（不设置则使用默认 CommunityDragon 源）
+  - `AUGMENTS_PATCH_VERSION=14.24`（可选；不设置默认写入 `latest`）
+  - `AUGMENTS_DEACTIVATE_OLD=true`（可选）
+  - 本地回退缓存（同步成功后自动写入）：
+    - `data/cache/champions.json`
+    - `data/cache/items.standard.json`
+    - `data/cache/items.hex_brawl.json`
+
 ## 认证头设置
 
 对于需要认证的接口，请在请求头中添加：
@@ -760,4 +937,6 @@ export default {
 - **v1.0.0**: 初始版本，包含用户认证、笔记管理、系统接口等基础功能
 - 支持用户注册、登录、登出
 - 支持笔记的增删改查
-- 提供系统健康检查和状态监控 
+- 提供系统健康检查和状态监控
+- **v1.1.0**: 新增 LOL 强化池接口（`/api/augments`），攻略支持 `mode=hex_brawl` 与 `augmentIds` 保存
+- **v1.2.0**: 英雄/装备支持定时同步（72h）与本地回退；装备支持 `mode=standard|hex_brawl`

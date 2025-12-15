@@ -18,6 +18,7 @@ const swaggerUi = require('swagger-ui-express');
 const config = require('./config/app');
 const { connectDB } = require('./config/database');
 const swaggerSpec = require('./config/swagger');
+const { startAugmentSyncScheduler } = require('./jobs/augmentSyncScheduler');
 
 // 导入中间件
 const { securityHeaders, corsOptions, rateLimiter, apiRateLimiter } = require('./middleware/security');
@@ -35,6 +36,10 @@ app.set('trust proxy', 1)
 // 在应用启动时建立MongoDB连接
 connectDB();
 
+// ==================== 定时任务 ====================
+// 强化池同步（72h一次，默认关闭，需设置 AUGMENTS_SYNC_ENABLED=true）
+startAugmentSyncScheduler();
+
 // ==================== 安全中间件配置 ====================
 // 设置安全HTTP头，防止常见攻击
 app.use(securityHeaders);
@@ -48,9 +53,16 @@ app.use(compression());
 
 // ==================== 请求解析中间件 ====================
 // 解析JSON请求体，限制大小为1MB防止大文件上传
-app.use(express.json({ limit: '1mb' }));
+// 注意：GET/HEAD 按规范不应携带请求体；部分客户端误发送空 body 会触发 JSON 解析报错（Unexpected end of JSON input）
+app.use((req, res, next) => {
+  if (req.method === 'GET' || req.method === 'HEAD') return next();
+  return express.json({ limit: '1mb' })(req, res, next);
+});
 // 解析URL编码的请求体（表单数据）
-app.use(express.urlencoded({ extended: true }));
+app.use((req, res, next) => {
+  if (req.method === 'GET' || req.method === 'HEAD') return next();
+  return express.urlencoded({ extended: true })(req, res, next);
+});
 
 // ==================== 日志中间件 ====================
 // 记录HTTP请求日志，包括方法、URL、状态码、响应时间等

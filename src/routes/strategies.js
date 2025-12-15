@@ -10,6 +10,7 @@ const Strategy = require('../models/Strategy')
 const Champion = require('../models/Champion')
 const Item = require('../models/Item')
 const Rune = require('../models/Rune')
+const Augment = require('../models/Augment')
 const { asyncHandler } = require('../utils/asyncHandler')
 const { successResponse, errorResponse } = require('../utils/response')
 const { protect: authMiddleware } = require('../middleware/authMiddleware')
@@ -25,6 +26,7 @@ router.get(
     const {
       championKey,
       mapType,
+      mode,
       creatorId,
       search,
       isRecommended,
@@ -37,6 +39,7 @@ router.get(
       status: 'published',
       isPublic: true,
     }
+    const andConditions = []
 
     // 英雄过滤
     if (championKey) {
@@ -44,8 +47,9 @@ router.get(
     }
 
     // 地图过滤
-    if (mapType && ['sr', 'aram', 'both'].includes(mapType)) {
-      query.$or = [{ mapType }, { mapType: 'both' }]
+    const resolvedMode = mode || mapType
+    if (resolvedMode && ['sr', 'aram', 'hex_brawl', 'both'].includes(resolvedMode)) {
+      andConditions.push({ $or: [{ mapType: resolvedMode }, { mapType: 'both' }] })
     }
 
     // 创建者过滤
@@ -55,16 +59,22 @@ router.get(
 
     // 搜索过滤
     if (search) {
-      query.$or = [
-        { title: { $regex: search, $options: 'i' } },
-        { championName: { $regex: search, $options: 'i' } },
-        { description: { $regex: search, $options: 'i' } },
-      ]
+      andConditions.push({
+        $or: [
+          { title: { $regex: search, $options: 'i' } },
+          { championName: { $regex: search, $options: 'i' } },
+          { description: { $regex: search, $options: 'i' } },
+        ],
+      })
     }
 
     // 推荐攻略过滤
     if (isRecommended === 'true') {
       query.isRecommended = true
+    }
+
+    if (andConditions.length > 0) {
+      query.$and = andConditions
     }
 
     // 排序参数
@@ -109,7 +119,31 @@ router.post(
   '/',
   authMiddleware,
   asyncHandler(async (req, res) => {
-    const { title, championId, items, runes, mapType = 'sr', description, tags = [] } = req.body
+    const { title, championId, items, runes, mapType = 'sr', mode, augmentIds, description, tags = [] } = req.body
+
+    const resolvedMapType = mode || mapType
+    if (resolvedMapType && !['sr', 'aram', 'hex_brawl', 'both'].includes(resolvedMapType)) {
+      return res.status(400).json(errorResponse('mode/mapType 参数无效'))
+    }
+
+    const normalizedAugmentIds = Array.isArray(augmentIds)
+      ? [...new Set(augmentIds.map((id) => String(id).trim()).filter(Boolean))]
+      : []
+
+    // 可选：校验 augmentIds 是否存在（默认关闭，避免未导入数据时影响创建）
+    if (process.env.AUGMENT_VALIDATE_EXISTS === 'true' && normalizedAugmentIds.length > 0) {
+      const augmentQuery = { augmentId: { $in: normalizedAugmentIds } }
+      if (resolvedMapType && resolvedMapType !== 'both') {
+        augmentQuery.modes = resolvedMapType
+      }
+
+      const existing = await Augment.find(augmentQuery).select('augmentId').lean()
+      const existingSet = new Set(existing.map((a) => a.augmentId))
+      const missing = normalizedAugmentIds.filter((id) => !existingSet.has(id))
+      if (missing.length > 0) {
+        return res.status(400).json(errorResponse('augmentIds 包含无效强化', { missing }))
+      }
+    }
 
     // 验证必填字段
     if (!championId) {
@@ -203,7 +237,8 @@ router.post(
         champion: championId,
         items: strategyItems,
         runes: runeConfig,
-        mapType,
+        mapType: resolvedMapType,
+        augmentIds: normalizedAugmentIds,
         description,
         tags,
         creator: req.user._id,
@@ -309,7 +344,7 @@ router.put(
   authMiddleware,
   asyncHandler(async (req, res) => {
     const { id } = req.params
-    const { title, championId, items, runes, mapType, description, tags, isPublic } = req.body
+    const { title, championId, items, runes, mapType, mode, augmentIds, description, tags, isPublic } = req.body
 
     try {
       const strategy = await Strategy.findById(id)
@@ -325,10 +360,39 @@ router.put(
 
       // 更新基础字段
       if (title !== undefined) strategy.title = title
-      if (mapType !== undefined) strategy.mapType = mapType
+      const nextMapType = mode !== undefined ? mode : mapType
+      if (nextMapType !== undefined) {
+        if (!['sr', 'aram', 'hex_brawl', 'both'].includes(nextMapType)) {
+          return res.status(400).json(errorResponse('mode/mapType 参数无效'))
+        }
+        strategy.mapType = nextMapType
+      }
       if (description !== undefined) strategy.description = description
       if (tags !== undefined) strategy.tags = tags
       if (isPublic !== undefined) strategy.isPublic = isPublic
+
+      if (augmentIds !== undefined) {
+        if (!Array.isArray(augmentIds)) {
+          return res.status(400).json(errorResponse('augmentIds 必须是数组'))
+        }
+        const normalizedAugmentIds = [...new Set(augmentIds.map((id) => String(id).trim()).filter(Boolean))]
+
+        if (process.env.AUGMENT_VALIDATE_EXISTS === 'true' && normalizedAugmentIds.length > 0) {
+          const augmentQuery = { augmentId: { $in: normalizedAugmentIds } }
+          if (strategy.mapType && strategy.mapType !== 'both') {
+            augmentQuery.modes = strategy.mapType
+          }
+
+          const existing = await Augment.find(augmentQuery).select('augmentId').lean()
+          const existingSet = new Set(existing.map((a) => a.augmentId))
+          const missing = normalizedAugmentIds.filter((id) => !existingSet.has(id))
+          if (missing.length > 0) {
+            return res.status(400).json(errorResponse('augmentIds 包含无效强化', { missing }))
+          }
+        }
+
+        strategy.augmentIds = normalizedAugmentIds
+      }
 
       // 更新英雄
       if (championId && championId !== strategy.champion.toString()) {
@@ -485,10 +549,11 @@ router.get(
   '/champion/:championKey',
   asyncHandler(async (req, res) => {
     const { championKey } = req.params
-    const { mapType } = req.query
+    const { mapType, mode } = req.query
 
     try {
-      const strategies = await Strategy.getByChampion(championKey, mapType)
+      const resolvedMapType = mode || mapType
+      const strategies = await Strategy.getByChampion(championKey, resolvedMapType)
 
       res.json(
         successResponse('英雄攻略获取成功', {
@@ -581,11 +646,10 @@ router.get(
 /**
  * @route   POST /api/strategies/:id/like
  * @desc    点赞/取消点赞攻略
- * @access  需要认证
+ * @access  公开
  */
 router.post(
   '/:id/like',
-  authMiddleware,
   asyncHandler(async (req, res) => {
     const { id } = req.params
 
@@ -602,7 +666,7 @@ router.post(
 
       res.json(
         successResponse('点赞成功', {
-          likeCount: strategy.stats.likeCount + 1,
+          likeCount: strategy.stats.likeCount,
         })
       )
     } catch (error) {
