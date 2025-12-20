@@ -27,6 +27,20 @@ const parseBoolean = (value) => {
   return undefined;
 };
 
+const normalizeTier = (value) => {
+  if (value === undefined || value === null) return undefined;
+  const text = String(value).trim();
+  if (!text) return undefined;
+  if (text === '0') return 'silver';
+  if (text === '1') return 'gold';
+  if (text === '2') return 'prismatic';
+  const lowered = text.toLowerCase();
+  if (lowered === 'ksilver' || lowered === 'silver') return 'silver';
+  if (lowered === 'kgold' || lowered === 'gold') return 'gold';
+  if (lowered === 'kprismatic' || lowered === 'prismatic') return 'prismatic';
+  return text;
+};
+
 const escapeRegExp = (value) => String(value).replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
 
 /**
@@ -66,7 +80,7 @@ router.get(
     }
 
     if (tier !== undefined && tier !== null && String(tier).trim() !== '') {
-      query.tier = String(tier).trim();
+      query.tier = normalizeTier(tier);
     }
 
     if (search) {
@@ -91,9 +105,14 @@ router.get(
           .lean(),
       ]);
 
+      const normalizedAugments = augments.map((a) => ({
+        ...a,
+        tier: normalizeTier(a.tier) || a.tier,
+      }));
+
       res.json(
         successResponse('强化池获取成功', {
-          augments,
+          augments: normalizedAugments,
           total,
         })
       );
@@ -120,7 +139,12 @@ router.get(
         return res.status(404).json(errorResponse('强化不存在'));
       }
 
-      res.json(successResponse('强化详情获取成功', augment));
+      res.json(
+        successResponse('强化详情获取成功', {
+          ...augment,
+          tier: normalizeTier(augment.tier) || augment.tier,
+        })
+      );
     } catch (error) {
       res.status(500).json(errorResponse('获取强化详情失败', error.message));
     }
@@ -128,4 +152,3 @@ router.get(
 );
 
 module.exports = router;
-

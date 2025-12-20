@@ -19,6 +19,76 @@ const resolveItemMode = (value) => {
   return 'standard';
 };
 
+const normalizeString = (value) => String(value ?? '').trim();
+
+const pickPreferredDuplicateItem = (a, b) => {
+  if (!a) return b;
+  if (!b) return a;
+
+  const aId = normalizeString(a.riotId);
+  const bId = normalizeString(b.riotId);
+  const aNum = Number(aId);
+  const bNum = Number(bId);
+
+  if (Number.isFinite(aNum) && Number.isFinite(bNum) && aNum !== bNum) {
+    return aNum < bNum ? a : b;
+  }
+
+  if (aId && bId && aId !== bId) {
+    return aId < bId ? a : b;
+  }
+
+  return a;
+};
+
+const dedupeItemsForList = (items) => {
+  const list = Array.isArray(items) ? items : [];
+  const output = [];
+  const keyToIndex = new Map();
+
+  for (const item of list) {
+    if (!item) continue;
+    const key = normalizeString(item.name) || normalizeString(item.riotId);
+    if (!key) continue;
+
+    const existingIndex = keyToIndex.get(key);
+    if (existingIndex === undefined) {
+      keyToIndex.set(key, output.length);
+      output.push(item);
+      continue;
+    }
+
+    output[existingIndex] = pickPreferredDuplicateItem(output[existingIndex], item);
+  }
+
+  return output;
+};
+
+const resolveBooleanQueryParam = (value) => {
+  if (value === undefined || value === null) return undefined;
+  const input = Array.isArray(value) ? value[0] : value;
+  if (input === undefined || input === null) return undefined;
+  if (typeof input === 'boolean') return input;
+  const normalized = String(input).trim().toLowerCase();
+  if (['true', '1', 'yes', 'on'].includes(normalized)) return true;
+  if (['false', '0', 'no', 'off'].includes(normalized)) return false;
+  return undefined;
+};
+
+const appendOrConditions = (query, conditions) => {
+  if (!query || !Array.isArray(conditions) || conditions.length === 0) return;
+  if (query.$and) {
+    query.$and.push({ $or: conditions });
+    return;
+  }
+  if (query.$or) {
+    query.$and = [{ $or: query.$or }, { $or: conditions }];
+    delete query.$or;
+    return;
+  }
+  query.$or = conditions;
+};
+
 const fallbackItemData = (mode) => {
   const cacheFile =
     mode === 'hex_brawl' ? path.join(process.cwd(), 'data/cache/items.hex_brawl.json') : path.join(process.cwd(), 'data/cache/items.standard.json');
@@ -38,6 +108,10 @@ const fallbackItemData = (mode) => {
       const icon = i.icon ? String(i.icon) : i.image ? String(i.image) : '';
       if (!riotId || !name) return null;
 
+      const priceTotal = i.price || i.gold?.total || 0;
+      const tags = i.tags || [];
+      const isLegendary = priceTotal >= 2000 && !tags.includes('Consumable') && !tags.includes('Trinket');
+
       return {
         riotId,
         name,
@@ -50,7 +124,7 @@ const fallbackItemData = (mode) => {
           sell: i.gold?.sell || 0,
           purchasable: true,
         },
-        tags: i.tags || [],
+        tags,
         maps:
           mode === 'hex_brawl'
             ? { sr: false, ha: false, aram: true }
@@ -61,7 +135,7 @@ const fallbackItemData = (mode) => {
         specialRecipe: i.specialRecipe || 0,
         group: i.group || '',
         isMythic: Boolean(i.isMythic),
-        isLegendary: Boolean(i.isLegendary),
+        isLegendary: Boolean(i.isLegendary) || isLegendary,
         isBoots: Boolean((i.tags || []).includes('Boots')),
         version,
         isEnabled: true,
@@ -112,6 +186,11 @@ router.get(
 
     const resolvedMode = resolveItemMode(mode);
     const Model = resolvedMode === 'hex_brawl' ? HexItem : Item;
+    const resolvedLegendaryFilter = resolveBooleanQueryParam(legendary);
+    const resolvedBootsFilter = resolveBooleanQueryParam(boots);
+    const shouldApplyHexLegendaryBootsDefault =
+      resolvedMode === 'hex_brawl' &&
+      (resolvedLegendaryFilter === undefined || (resolvedLegendaryFilter === true && resolvedBootsFilter === undefined));
 
     // 构建查询条件
     const query = { isEnabled: true };
@@ -158,11 +237,14 @@ router.get(
     if (mythic !== undefined) {
       query.isMythic = mythic === 'true';
     }
-    if (legendary !== undefined) {
-      query.isLegendary = legendary === 'true';
+    // 海克斯大乱斗默认返回“传说等级装备 + 鞋子”，即使显式传 legendary=true 亦会包含鞋子；如需排除可传 boots=false 或自定义 legendary
+    if (shouldApplyHexLegendaryBootsDefault) {
+      appendOrConditions(query, [{ isLegendary: true }, { isBoots: true }]);
+    } else if (resolvedLegendaryFilter !== undefined) {
+      query.isLegendary = resolvedLegendaryFilter;
     }
-    if (boots !== undefined) {
-      query.isBoots = boots === 'true';
+    if (resolvedBootsFilter !== undefined) {
+      query.isBoots = resolvedBootsFilter;
     }
 
     // 排序参数
@@ -179,10 +261,11 @@ router.get(
         .lean();
 
       if (items.length > 0) {
+        const dedupedItems = dedupeItemsForList(items);
         return res.json(
           successResponse('装备列表获取成功', {
-            items,
-            total: items.length,
+            items: dedupedItems,
+            total: dedupedItems.length,
             filters: {
               search,
               tags: tags ? (Array.isArray(tags) ? tags : tags.split(',')) : null,
@@ -221,9 +304,13 @@ router.get(
       if (minPrice) fallbackList = fallbackList.filter((i) => (i.gold?.total || 0) >= parseInt(minPrice));
       if (maxPrice) fallbackList = fallbackList.filter((i) => (i.gold?.total || 0) <= parseInt(maxPrice));
       if (depth) fallbackList = fallbackList.filter((i) => (i.depth || 0) === parseInt(depth));
-      if (boots !== undefined) fallbackList = fallbackList.filter((i) => Boolean(i.isBoots) === (boots === 'true'));
+      if (resolvedBootsFilter !== undefined) fallbackList = fallbackList.filter((i) => Boolean(i.isBoots) === resolvedBootsFilter);
       if (mythic !== undefined) fallbackList = fallbackList.filter((i) => Boolean(i.isMythic) === (mythic === 'true'));
-      if (legendary !== undefined) fallbackList = fallbackList.filter((i) => Boolean(i.isLegendary) === (legendary === 'true'));
+      if (shouldApplyHexLegendaryBootsDefault) {
+        fallbackList = fallbackList.filter((i) => Boolean(i.isLegendary) || Boolean(i.isBoots));
+      } else if (resolvedLegendaryFilter !== undefined) {
+        fallbackList = fallbackList.filter((i) => Boolean(i.isLegendary) === resolvedLegendaryFilter);
+      }
       if (purchasable !== undefined) {
         fallbackList = fallbackList.filter((i) => Boolean(i.gold?.purchasable) === (purchasable === 'true'));
       }
@@ -237,10 +324,11 @@ router.get(
         return sortOrder === -1 ? String(bv).localeCompare(String(av)) : String(av).localeCompare(String(bv));
       });
 
+      const dedupedFallbackList = dedupeItemsForList(fallbackList);
       res.json(
         successResponse('装备列表获取成功（本地回退）', {
-          items: fallbackList,
-          total: fallbackList.length,
+          items: dedupedFallbackList,
+          total: dedupedFallbackList.length,
           filters: {
             search,
             tags: tags ? (Array.isArray(tags) ? tags : tags.split(',')) : null,
@@ -260,10 +348,11 @@ router.get(
       const resolvedMode = resolveItemMode(req.query.mode);
       const fallback = fallbackItemData(resolvedMode);
       if (fallback.items.length > 0) {
+        const dedupedFallbackItems = dedupeItemsForList(fallback.items);
         return res.json(
           successResponse('装备列表获取成功（本地回退）', {
-            items: fallback.items,
-            total: fallback.items.length,
+            items: dedupedFallbackItems,
+            total: dedupedFallbackItems.length,
             filters: { mode: resolvedMode },
           })
         );

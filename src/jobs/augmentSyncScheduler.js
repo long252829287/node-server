@@ -23,9 +23,11 @@ function startAugmentSyncScheduler() {
 
   const mode = process.env.AUGMENTS_SYNC_MODE || 'hex_brawl';
   const sourceUrl = process.env.AUGMENTS_SOURCE_URL;
+  const poolUrl = process.env.AUGMENTS_POOL_URL;
   const patchVersion = process.env.AUGMENTS_PATCH_VERSION || process.env.AUGMENTS_PATCH || 'latest';
   const deactivateOld = process.env.AUGMENTS_DEACTIVATE_OLD === 'true';
   const locale = process.env.LOL_LOCALE || 'zh_CN';
+  const refreshModeMembership = process.env.AUGMENTS_NO_REFRESH_MODE !== 'true';
 
   let timer = null;
   let isRunning = false;
@@ -41,9 +43,12 @@ function startAugmentSyncScheduler() {
         results.augments = await syncAugmentsToDB({
           mode,
           sourceUrl,
+          poolUrl,
+          locale,
           patchVersion,
           deactivateOld,
           isActive: true,
+          refreshModeMembership,
         });
       }
 

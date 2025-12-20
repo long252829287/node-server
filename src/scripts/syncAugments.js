@@ -4,7 +4,8 @@
  * 用法：
  *  - node src/scripts/syncAugments.js
  *  - node src/scripts/syncAugments.js --mode hex_brawl --patch 14.24 --deactivate-old
- *  - node src/scripts/syncAugments.js --source https://.../cherry-augments.json
+ *  - node src/scripts/syncAugments.js --source https://raw.communitydragon.org/latest/cdragon/arena/zh_cn.json
+ *  - node src/scripts/syncAugments.js --mode hex_brawl --pool https://.../hex-brawl-pool.json
  */
 
 const mongoose = require('mongoose');
@@ -36,6 +37,7 @@ async function main() {
   const args = parseArgs();
   const mode = args.mode || process.env.AUGMENTS_SYNC_MODE || 'hex_brawl';
   const sourceUrl = args.source || process.env.AUGMENTS_SOURCE_URL;
+  const poolUrl = args.pool || process.env.AUGMENTS_POOL_URL;
   const patchVersion =
     args.patch ||
     args.patchVersion ||
@@ -43,15 +45,20 @@ async function main() {
     process.env.AUGMENTS_PATCH ||
     'latest';
   const deactivateOld = Boolean(args['deactivate-old'] || args.deactivateOld || process.env.AUGMENTS_DEACTIVATE_OLD === 'true');
+  const locale = args.locale || process.env.AUGMENTS_LOCALE || process.env.LOL_LOCALE || 'zh_CN';
+  const refreshModeMembership = !(args['no-refresh-mode'] || process.env.AUGMENTS_NO_REFRESH_MODE === 'true');
 
   await connectDB();
   try {
     const result = await syncAugmentsToDB({
       mode,
       sourceUrl,
+      poolUrl,
+      locale,
       patchVersion,
       deactivateOld,
       isActive: true,
+      refreshModeMembership,
     });
     console.log(
       `✅ sync ok: mode=${mode} total=${result.total} upserted=${result.upserted} modified=${result.modified}`

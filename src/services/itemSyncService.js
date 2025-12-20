@@ -1,7 +1,7 @@
 /**
  * 装备数据同步服务
  * - 标准模式：Riot Data Dragon（/item.json）
- * - 海克斯模式（hex_brawl）：CommunityDragon items.json（rcp-be-lol-game-data）
+ * - 海克斯大乱斗（hex_brawl）：Data Dragon 标准装备的 ARAM 子集（中文 + 图片稳定）
  * - 同步成功：写入 MongoDB + 本地 JSON 缓存
  */
 
@@ -13,23 +13,12 @@ const HexItem = require('../models/HexItem');
 const { writeJsonAtomic } = require('../utils/localJsonCache');
 
 const DATA_DRAGON_BASE = 'https://ddragon.leagueoflegends.com';
-const CDRAGON_RCP_ITEMS_URL =
-  'https://raw.communitydragon.org/latest/plugins/rcp-be-lol-game-data/global/default/v1/items.json';
-const CDRAGON_ITEM_ICON_BASE = 'https://raw.communitydragon.org/latest/game/assets/items/icons2d/';
 
 const getLatestVersion = async (timeoutMs = 15000) => {
   const response = await axios.get(`${DATA_DRAGON_BASE}/api/versions.json`, { timeout: timeoutMs });
   const latestVersion = response?.data?.[0];
   if (!latestVersion) throw new Error('获取最新版本失败');
   return latestVersion;
-};
-
-const normalizeCDragonItemIcon = (iconPath) => {
-  if (!iconPath) return '';
-  const parts = String(iconPath).split('/');
-  const file = parts[parts.length - 1];
-  if (!file) return '';
-  return `${CDRAGON_ITEM_ICON_BASE}${file.toLowerCase()}`;
 };
 
 // ==================== 标准模式（Data Dragon） ====================
@@ -123,62 +112,43 @@ async function syncStandardItemsToDB({
   };
 }
 
-// ==================== 海克斯模式（CommunityDragon） ====================
+// ==================== 海克斯大乱斗（Hex Brawl） ====================
 
-const fetchHexItems = async ({ timeoutMs = 15000, sourceUrl = CDRAGON_RCP_ITEMS_URL }) => {
-  const response = await axios.get(sourceUrl, { timeout: timeoutMs });
-  const list = response?.data;
-  return Array.isArray(list) ? list : [];
-};
+const transformHexBrawlItem = ({ item, version }) => {
+  const normalized = transformStandardItem({ item, version });
+  if (!normalized) return null;
+  if (normalized.maps?.aram !== true) return null;
 
-const transformHexItem = ({ item, version = 'latest' }) => {
-  if (!item?.id || !item?.name) return null;
-  if (item.inStore === false) return null;
-
-  const isBoots = Boolean(item.categories && item.categories.includes('Boots'));
+  const tags = normalized.tags || [];
+  const priceTotal = normalized.gold?.total || 0;
+  const isLegendary = priceTotal >= 2000 && !tags.includes('Consumable') && !tags.includes('Trinket');
 
   return {
-    riotId: String(item.id),
-    name: item.name,
-    description: item.description || '',
-    plaintext: '',
-    image: normalizeCDragonItemIcon(item.iconPath),
-    gold: {
-      total: item.priceTotal || item.price || 0,
-      base: item.price || 0,
-      sell: 0,
-      purchasable: item.inStore !== false,
-    },
-    tags: item.categories || [],
-    maps: {
-      sr: false,
-      ha: false,
-      aram: true,
-    },
-    depth: 1,
-    from: item.from || [],
-    into: item.to || [],
-    specialRecipe: item.specialRecipe || 0,
-    group: '',
-    isMythic: false,
-    isLegendary: false,
-    isBoots,
-    version,
-    isEnabled: true,
+    ...normalized,
+    maps: { sr: false, ha: false, aram: true },
+    isLegendary,
+    depth: isLegendary ? 3 : 1,
   };
 };
 
 async function syncHexItemsToDB({
   cacheFile = path.join(process.cwd(), 'data/cache/items.hex_brawl.json'),
   timeoutMs = 15000,
-  sourceUrl = CDRAGON_RCP_ITEMS_URL,
-  version = 'latest',
+  locale = 'zh_CN',
+  version,
+  deactivateOld = true,
 } = {}) {
-  const items = await fetchHexItems({ timeoutMs, sourceUrl });
-  const normalized = items.map((i) => transformHexItem({ item: i, version })).filter(Boolean);
+  const resolvedVersion = version ? String(version).trim() : await getLatestVersion(timeoutMs);
+  const versionForFetch = resolvedVersion === 'latest' ? await getLatestVersion(timeoutMs) : resolvedVersion;
+  const items = await fetchStandardItems({ version: versionForFetch, locale, timeoutMs });
+  const normalized = items.map((i) => transformHexBrawlItem({ item: i, version: versionForFetch })).filter(Boolean);
 
   if (normalized.length === 0) {
-    return { version, total: 0, upserted: 0, modified: 0 };
+    return { version: versionForFetch, total: 0, upserted: 0, modified: 0 };
+  }
+
+  if (deactivateOld) {
+    await HexItem.updateMany({ version: { $ne: versionForFetch } }, { $set: { isEnabled: false } });
   }
 
   const ops = normalized.map((i) => ({
@@ -192,11 +162,11 @@ async function syncHexItemsToDB({
   const result = await HexItem.bulkWrite(ops, { ordered: false });
 
   try {
-    writeJsonAtomic(cacheFile, { version, items: normalized });
+    writeJsonAtomic(cacheFile, { version: versionForFetch, items: normalized });
   } catch {}
 
   return {
-    version,
+    version: versionForFetch,
     total: normalized.length,
     upserted: result.upsertedCount || 0,
     modified: result.modifiedCount || 0,
@@ -205,8 +175,6 @@ async function syncHexItemsToDB({
 
 module.exports = {
   DATA_DRAGON_BASE,
-  CDRAGON_RCP_ITEMS_URL,
   syncStandardItemsToDB,
   syncHexItemsToDB,
 };
-

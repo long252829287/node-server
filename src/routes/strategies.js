@@ -9,11 +9,89 @@ const mongoose = require('mongoose')
 const Strategy = require('../models/Strategy')
 const Champion = require('../models/Champion')
 const Item = require('../models/Item')
+const HexItem = require('../models/HexItem')
 const Rune = require('../models/Rune')
 const Augment = require('../models/Augment')
 const { asyncHandler } = require('../utils/asyncHandler')
 const { successResponse, errorResponse } = require('../utils/response')
 const { protect: authMiddleware } = require('../middleware/authMiddleware')
+
+const normalizeString = (value) => String(value ?? '').trim()
+
+const normalizeStringArray = (value) => {
+  if (!value) return []
+  const raw = Array.isArray(value) ? value : [value]
+  return raw
+    .flatMap((v) => String(v).split(','))
+    .map((v) => v.trim())
+    .filter(Boolean)
+}
+
+const isObjectIdString = (value) => mongoose.isValidObjectId(value) && String(value).trim().length === 24
+
+const resolveStrategyItemLookup = (items) => {
+  const identifiers = items.map((item) => normalizeString(item?.itemId))
+  const objectIds = identifiers.filter((id) => isObjectIdString(id))
+  const riotIds = identifiers.filter((id) => id && !isObjectIdString(id))
+
+  if (objectIds.length > 0 && riotIds.length > 0) {
+    return { identifiers, query: { $or: [{ _id: { $in: objectIds } }, { riotId: { $in: riotIds } }] } }
+  }
+  if (objectIds.length > 0) return { identifiers, query: { _id: { $in: objectIds } } }
+  if (riotIds.length > 0) return { identifiers, query: { riotId: { $in: riotIds } } }
+  return { identifiers, query: null }
+}
+
+const resolveStrategyItemPositions = (items) => {
+  const rawPositions = items.map((item) => Number(item?.position)).filter((n) => Number.isFinite(n))
+  const isAllIntegers = rawPositions.every((n) => Number.isInteger(n))
+  const min = rawPositions.length > 0 ? Math.min(...rawPositions) : undefined
+  const max = rawPositions.length > 0 ? Math.max(...rawPositions) : undefined
+  const hasZeroBased = isAllIntegers && min === 0 && max <= 5
+  return items.map((item, index) => {
+    const raw = item?.position
+    const parsed = Number(raw)
+    if (!Number.isFinite(parsed)) return index + 1
+    if (hasZeroBased) return parsed + 1
+    return parsed
+  })
+}
+
+const handleMongooseWriteError = (res, error, message) => {
+  const base = errorResponse(message)
+  if (!error) return res.status(500).json({ ...base, reason: '未知错误' })
+
+  if (error.name === 'ValidationError') {
+    const errors = Object.values(error.errors || {}).map((e) => ({
+      path: e.path,
+      message: e.message,
+    }))
+    return res.status(400).json({ ...base, reason: '校验失败', errors })
+  }
+
+  if (error.name === 'CastError') {
+    return res.status(400).json({
+      ...base,
+      reason: '参数类型错误',
+      error: { path: error.path, value: error.value, message: error.message },
+    })
+  }
+
+  if (error.code === 11000) {
+    return res.status(409).json({ ...base, reason: '数据已存在（唯一键冲突）', key: error.keyValue || undefined })
+  }
+
+  console.error('[strategies] write failed:', error)
+  return res.status(500).json({ ...base, reason: '服务器内部错误' })
+}
+
+const invalidItemsResponse = (mapType, missing) => {
+  const response = { ...errorResponse('包含无效的装备'), missing }
+  if (mapType === 'hex_brawl') {
+    response.hint = '请确认已同步海克斯装备池（npm run sync:items -- --mode hex_brawl），并使用 /api/items?mode=hex_brawl 返回的 riotId'
+  }
+  return response
+}
 
 /**
  * @route   GET /api/strategies
@@ -112,7 +190,7 @@ router.get(
 
 /**
  * @route   POST /api/strategies
- * @desc    创建新攻略
+ * @desc    创建新攻略报告
  * @access  需要认证
  */
 router.post(
@@ -129,6 +207,8 @@ router.post(
     const normalizedAugmentIds = Array.isArray(augmentIds)
       ? [...new Set(augmentIds.map((id) => String(id).trim()).filter(Boolean))]
       : []
+
+    const normalizedTags = normalizeStringArray(tags)
 
     // 可选：校验 augmentIds 是否存在（默认关闭，避免未导入数据时影响创建）
     if (process.env.AUGMENT_VALIDATE_EXISTS === 'true' && normalizedAugmentIds.length > 0) {
@@ -150,12 +230,27 @@ router.post(
       return res.status(400).json(errorResponse('必须选择一个英雄'))
     }
 
+    if (!mongoose.isValidObjectId(championId)) {
+      return res.status(400).json(errorResponse('championId 参数无效'))
+    }
+
     if (!items || !Array.isArray(items) || items.length === 0) {
       return res.status(400).json(errorResponse('必须至少选择一个装备'))
     }
 
     if (items.length > 6) {
       return res.status(400).json(errorResponse('装备数量不能超过6个'))
+    }
+
+    const normalizedItems = items
+      .map((item) => ({
+        itemId: normalizeString(item?.itemId),
+        position: item?.position,
+      }))
+      .filter((item) => item.itemId)
+
+    if (normalizedItems.length !== items.length) {
+      return res.status(400).json(errorResponse('装备参数缺失 itemId'))
     }
 
     try {
@@ -166,32 +261,48 @@ router.post(
       }
 
       // 验证装备存在并获取装备信息
-      const itemIds = items.map((item) => item.itemId)
-      const validItems = await Item.find({
-        _id: { $in: itemIds },
-        isEnabled: true,
-      })
+      const itemLookup = resolveStrategyItemLookup(normalizedItems)
+      if (!itemLookup.query) {
+        return res.status(400).json(errorResponse('必须至少选择一个有效装备'))
+      }
 
-      if (validItems.length !== itemIds.length) {
-        return res.status(400).json(errorResponse('包含无效的装备'))
+      const ItemModel = resolvedMapType === 'hex_brawl' ? HexItem : Item
+      const validItems = await ItemModel.find({ ...itemLookup.query, isEnabled: true })
+        .select('riotId name image')
+        .lean()
+
+      const itemByIdentifier = new Map()
+      for (const item of validItems) {
+        itemByIdentifier.set(String(item._id), item)
+        if (item.riotId) itemByIdentifier.set(String(item.riotId), item)
+      }
+
+      const missingItems = itemLookup.identifiers.filter((id) => !itemByIdentifier.has(id))
+      if (missingItems.length > 0) {
+        return res.status(400).json(invalidItemsResponse(resolvedMapType, missingItems))
       }
 
       // 构建装备列表
-      const strategyItems = items.map((item, index) => {
-        const itemData = validItems.find((i) => i._id.toString() === item.itemId)
+      const positions = resolveStrategyItemPositions(normalizedItems)
+      const strategyItems = normalizedItems.map((item, index) => {
+        const itemData = itemByIdentifier.get(item.itemId)
         return {
           item: itemData._id,
           itemName: itemData.name,
           itemImage: itemData.image,
-          position: item.position || index + 1,
+          position: positions[index] || index + 1,
         }
       })
 
       // 验证装备位置唯一性
-      const positions = strategyItems.map((item) => item.position)
-      const uniquePositions = [...new Set(positions)]
-      if (positions.length !== uniquePositions.length) {
+      const positionValues = strategyItems.map((item) => item.position)
+      const uniquePositions = [...new Set(positionValues)]
+      if (positionValues.length !== uniquePositions.length) {
         return res.status(400).json(errorResponse('装备位置不能重复'))
+      }
+
+      if (strategyItems.some((item) => item.position < 1 || item.position > 6)) {
+        return res.status(400).json(errorResponse('装备位置必须在 1-6 之间'))
       }
 
       // 验证并构建符文配置
@@ -235,13 +346,16 @@ router.post(
       const strategy = new Strategy({
         title,
         champion: championId,
+        championKey: champion.key,
+        championName: champion.name,
         items: strategyItems,
         runes: runeConfig,
         mapType: resolvedMapType,
         augmentIds: normalizedAugmentIds,
         description,
-        tags,
-        creator: req.user._id,
+        tags: normalizedTags,
+        creator: req.user.userId,
+        creatorName: req.user.username,
       })
 
       await strategy.save()
@@ -255,7 +369,7 @@ router.post(
 
       res.status(201).json(successResponse('攻略创建成功', strategy))
     } catch (error) {
-      res.status(500).json(errorResponse('创建攻略失败', error.message))
+      return handleMongooseWriteError(res, error, '创建攻略失败')
     }
   })
 )
@@ -273,7 +387,7 @@ router.get(
 
     try {
       // 构建查询条件
-      const query = { creator: req.user._id }
+      const query = { creator: req.user.userId }
       if (status && ['draft', 'published', 'archived'].includes(status)) {
         query.status = status
       }
@@ -354,13 +468,14 @@ router.put(
       }
 
       // 检查权限
-      if (strategy.creator.toString() !== req.user._id.toString()) {
+      if (strategy.creator.toString() !== String(req.user.userId)) {
         return res.status(403).json(errorResponse('只能修改自己创建的攻略'))
       }
 
       // 更新基础字段
       if (title !== undefined) strategy.title = title
       const nextMapType = mode !== undefined ? mode : mapType
+      const effectiveMapType = nextMapType !== undefined ? nextMapType : strategy.mapType
       if (nextMapType !== undefined) {
         if (!['sr', 'aram', 'hex_brawl', 'both'].includes(nextMapType)) {
           return res.status(400).json(errorResponse('mode/mapType 参数无效'))
@@ -368,7 +483,7 @@ router.put(
         strategy.mapType = nextMapType
       }
       if (description !== undefined) strategy.description = description
-      if (tags !== undefined) strategy.tags = tags
+      if (tags !== undefined) strategy.tags = normalizeStringArray(tags)
       if (isPublic !== undefined) strategy.isPublic = isPublic
 
       if (augmentIds !== undefined) {
@@ -396,11 +511,16 @@ router.put(
 
       // 更新英雄
       if (championId && championId !== strategy.champion.toString()) {
+        if (!mongoose.isValidObjectId(championId)) {
+          return res.status(400).json(errorResponse('championId 参数无效'))
+        }
         const champion = await Champion.findById(championId)
         if (!champion) {
           return res.status(404).json(errorResponse('英雄不存在'))
         }
         strategy.champion = championId
+        strategy.championKey = champion.key
+        strategy.championName = champion.name
       }
 
       // 更新装备列表
@@ -414,32 +534,59 @@ router.put(
         }
 
         // 验证装备存在
-        const itemIds = items.map((item) => item.itemId)
-        const validItems = await Item.find({
-          _id: { $in: itemIds },
-          isEnabled: true,
-        })
+        const normalizedItems = items
+          .map((item) => ({
+            itemId: normalizeString(item?.itemId),
+            position: item?.position,
+          }))
+          .filter((item) => item.itemId)
 
-        if (validItems.length !== itemIds.length) {
-          return res.status(400).json(errorResponse('包含无效的装备'))
+        if (normalizedItems.length !== items.length) {
+          return res.status(400).json(errorResponse('装备参数缺失 itemId'))
+        }
+
+        const itemLookup = resolveStrategyItemLookup(normalizedItems)
+        if (!itemLookup.query) {
+          return res.status(400).json(errorResponse('必须至少选择一个有效装备'))
+        }
+
+        const ItemModel = effectiveMapType === 'hex_brawl' ? HexItem : Item
+        const validItems = await ItemModel.find({ ...itemLookup.query, isEnabled: true })
+          .select('riotId name image')
+          .lean()
+
+        const itemByIdentifier = new Map()
+        for (const item of validItems) {
+          itemByIdentifier.set(String(item._id), item)
+          if (item.riotId) itemByIdentifier.set(String(item.riotId), item)
+        }
+
+        const missingItems = itemLookup.identifiers.filter((id) => !itemByIdentifier.has(id))
+        if (missingItems.length > 0) {
+          return res.status(400).json(invalidItemsResponse(effectiveMapType, missingItems))
         }
 
         // 构建装备列表
-        const strategyItems = items.map((item, index) => {
-          const itemData = validItems.find((i) => i._id.toString() === item.itemId)
+        const positions = resolveStrategyItemPositions(normalizedItems)
+        const strategyItems = normalizedItems.map((item, index) => {
+          const itemData = itemByIdentifier.get(item.itemId)
           return {
             item: itemData._id,
             itemName: itemData.name,
             itemImage: itemData.image,
-            position: item.position || index + 1,
+            position: positions[index] || index + 1,
           }
         })
 
         // 验证装备位置唯一性
-        const positions = strategyItems.map((item) => item.position)
-        const uniquePositions = [...new Set(positions)]
-        if (positions.length !== uniquePositions.length) {
+        const positionValues = strategyItems.map((item) => item.position)
+        const uniquePositions = [...new Set(positionValues)]
+        if (positionValues.length !== uniquePositions.length) {
           return res.status(400).json(errorResponse('装备位置不能重复'))
+        }
+
+        if (strategyItems.some((item) => item.position < 1 || item.position > 6)) {
+          return res.status(400).json(errorResponse('装备位置必须在 1-6 之间'))
         }
 
         strategy.items = strategyItems
@@ -500,7 +647,7 @@ router.put(
       if (error.name === 'CastError') {
         return res.status(404).json(errorResponse('攻略不存在'))
       }
-      res.status(500).json(errorResponse('更新攻略失败', error.message))
+      return handleMongooseWriteError(res, error, '更新攻略失败')
     }
   })
 )
@@ -524,7 +671,7 @@ router.delete(
       }
 
       // 检查权限
-      if (strategy.creator.toString() !== req.user._id.toString()) {
+      if (strategy.creator.toString() !== String(req.user.userId)) {
         return res.status(403).json(errorResponse('只能删除自己创建的攻略'))
       }
 

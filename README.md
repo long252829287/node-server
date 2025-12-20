@@ -1,16 +1,5 @@
 # Node.js 直播平台API服务器
 
-## 项目简介
-
-这是一个基于 Node.js + Express 的 Web API 服务器项目，提供通用的健康检查、认证与笔记管理等API。项目采用分层架构设计，遵循 MVC 模式，具有良好的代码组织和扩展性。
-
-## 🚀 主要功能
-
-- **健康检查**: 服务器状态监控，支持负载均衡
-- **安全防护**: 请求限流、安全头设置、CORS配置
-- **统一响应**: 标准化的API响应格式
-- **跨平台支持**: 支持Windows和Linux环境
-
 ## 🏗️ 项目架构
 
 ```json
@@ -214,26 +203,21 @@ npm test
 - [踩坑记录](./踩坑记录.md) - 开发过程中遇到的问题和解决方案
 - [Node学习记录](./node学习记录.md) - Node.js学习笔记
 
-## 🤝 贡献指南
+## 同步脚本
 
-1. Fork 项目
-2. 创建功能分支
-3. 提交更改
-4. 推送到分支
-5. 创建 Pull Request
+- 同步海克斯大乱斗装备： npm run sync:items -- --mode hex_brawl --locale zh_CN
+- 准备一个“海克斯大乱斗允许的 augmentId 列表”（这是
+  CommunityDragon 公开静态文件里目前没直接给出来的差异点），然后这样同步：
 
-## 📄 许可证
+  - 方式 1（推荐）：pool 文件是一个字符串数组（apiName）
+      - hex-brawl-pool.json 示例：["DualWield","Eureka","Earthwake"]
+      - 执行：npm run sync:augments -- --mode hex_brawl --locale zh_CN --pool
+        https://.../hex-brawl-pool.json
+  - 方式 2：用环境变量
+      - AUGMENTS_POOL_URL=https://.../hex-brawl-pool.json npm run sync:augments
+        -- --mode hex_brawl --locale zh_CN
 
-本项目采用 MIT 许可证。
-
-## 📞 联系方式
-
-如有问题或建议，请通过以下方式联系：
-- 提交 Issue
-- 创建 Pull Request
-- 发送邮件
-
-## 🙏 致谢
-
-感谢所有为这个项目做出贡献的开发者和用户。
-
+  如果你能给我一份“海克斯大乱斗实际可选强化”的完整 augmentId 列表（从前端/抓包/
+  截图整理都行），我可以直接把它落到仓库里（例如 src/assets/json/lol/
+  hex_brawl_augment_pool.json），然后让同步默认就用这份 pool，不再需要你额外传
+  --pool。

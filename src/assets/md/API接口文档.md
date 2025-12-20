@@ -455,7 +455,7 @@
 - **请求参数（query）**:
   - `mode`（可选）: `standard | hex_brawl`（默认 `standard`）
     - `standard`：标准装备池（默认限制 `maps.sr=true`）
-    - `hex_brawl`：海克斯模式装备池（默认限制 `maps.aram=true`，数据源与集合独立）
+    - `hex_brawl`：海克斯大乱斗装备池（默认限制 `maps.aram=true`；写入独立集合 `hex_items`；默认只返回 `legendary=true` 的传说装备）
   - `map`（可选）: `sr | ha | aram`（存在时优先按 map 过滤）
   - 其他参数与原接口保持一致：`search/tags/minPrice/maxPrice/depth/purchasable/mythic/legendary/boots/sort/order`
 
@@ -474,7 +474,7 @@
   - `mode`（可选）: 模式筛选（如 `hex_brawl`）
   - `search`（可选）: 关键词（匹配 `name/description`）
   - `tags`（可选）: 标签过滤（多个用逗号分隔）
-  - `tier`（可选）: 稀有度/层级（如 `1/2/3` 或 `common/rare`）
+  - `tier`（可选）: 稀有度/层级（推荐：`silver | gold | prismatic`；兼容 `0/1/2` 与 `kSilver/kGold/kPrismatic`）
   - `isActive`（可选）: 是否启用（默认 `true`）
   - `limit`（可选）: 返回数量（默认 `50`，最大 `200`）
   - `offset`（可选）: 偏移量（默认 `0`）
@@ -573,15 +573,18 @@
 > 说明：
 > - 强化（Augments）：Riot 官方开发者 API/Data Dragon 暂无稳定公开的“强化静态列表”接口；本项目采用 CommunityDragon（arena）作为数据源（可配置）。
 > - 英雄/标准装备：使用 Riot Data Dragon。
-> - 海克斯模式装备：使用 CommunityDragon（rcp items）补齐更多装备定义。
+> - 海克斯大乱斗装备：使用 Data Dragon 标准装备的 ARAM 子集（中文与图片更稳定）。
+> - 强化池与模式：海克斯大乱斗（ARAM: Mayhem）与 Arena 强化相似但不完全一致；建议通过 `AUGMENTS_POOL_URL` 提供该模式允许的强化集合来过滤同步。
 
 #### 6.1 手动同步（推荐用于首次导入/排查）
 - **命令**:
   - `npm run sync:champions`
-  - `npm run sync:items`（可选 `--mode standard|hex_brawl|both`）
-  - `npm run sync:augments`
+  - `npm run sync:items`（可选 `--mode standard|hex_brawl|both`；可选 `--locale zh_CN`）
+  - `npm run sync:augments`（可选 `--mode hex_brawl|arena`；可选 `--pool <url>`；可选 `--locale zh_CN`）
 - **可选参数**:
   - `--mode hex_brawl`
+  - `--locale zh_CN`（标准/海克斯大乱斗装备均会按该语言从 Data Dragon 抓取）
+  - `--pool <url>`（可选；提供“该模式允许的强化集合”列表，用于过滤同步）
   - `--patch 14.24`（写入 `patchVersion`）
   - `--deactivate-old`（同 mode 下，其他 patchVersion 置为 `isActive=false`，便于版本切换）
   - `--source <url>`（自定义数据源 URL）
@@ -593,6 +596,7 @@
   - `LOL_LOCALE=zh_CN`（Data Dragon 语言）
   - `AUGMENTS_SYNC_MODE=hex_brawl`
   - `AUGMENTS_SOURCE_URL=<url>`（不设置则使用默认 CommunityDragon 源）
+  - `AUGMENTS_POOL_URL=<url>`（可选；提供“该模式允许的强化集合”列表，用于过滤同步）
   - `AUGMENTS_PATCH_VERSION=14.24`（可选；不设置默认写入 `latest`）
   - `AUGMENTS_DEACTIVATE_OLD=true`（可选）
   - 本地回退缓存（同步成功后自动写入）：

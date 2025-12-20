@@ -170,7 +170,8 @@ const strategySchema = new mongoose.Schema({
   // 攻略标签
   tags: [{
     type: String,
-    enum: ['early', 'mid', 'late', 'tank', 'damage', 'support', 'jungle', 'lane']
+    trim: true,
+    maxlength: [50, '标签不能超过50个字符']
   }],
 
   // 创建者

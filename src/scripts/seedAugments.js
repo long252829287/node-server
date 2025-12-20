@@ -56,6 +56,26 @@ const pickFirstString = (...values) => {
   return '';
 };
 
+const normalizeTier = (value) => {
+  if (value === undefined || value === null) return '';
+  if (typeof value === 'number') {
+    if (value === 0) return 'silver';
+    if (value === 1) return 'gold';
+    if (value === 2) return 'prismatic';
+    return String(value);
+  }
+  const text = String(value).trim();
+  if (!text) return '';
+  if (text === '0') return 'silver';
+  if (text === '1') return 'gold';
+  if (text === '2') return 'prismatic';
+  const lowered = text.toLowerCase();
+  if (lowered === 'ksilver' || lowered.includes('silver')) return 'silver';
+  if (lowered === 'kgold' || lowered.includes('gold')) return 'gold';
+  if (lowered === 'kprismatic' || lowered.includes('prismatic')) return 'prismatic';
+  return text;
+};
+
 const toStringArray = (value) => {
   if (!value) return [];
   if (Array.isArray(value)) return value.map((v) => String(v).trim()).filter(Boolean);
@@ -119,7 +139,7 @@ async function main() {
 
       const description = pickFirstString(a?.description, a?.desc, a?.tooltip);
       const icon = pickFirstString(a?.icon, a?.iconLarge, a?.iconSmall);
-      const tier = pickFirstString(a?.tier, a?.rarity);
+      const tier = normalizeTier(a?.tier ?? a?.rarity);
       const tags = toStringArray(a?.tags);
       const modes = Array.from(new Set([...toStringArray(a?.modes), mode])).filter(Boolean);
 
@@ -169,4 +189,3 @@ if (require.main === module) {
 }
 
 module.exports = { main };
-
