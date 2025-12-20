@@ -12,44 +12,9 @@ const { asyncHandler } = require('../utils/asyncHandler');
 // 创建路由器实例
 const router = express.Router();
 
-/**
- * @swagger
- * /api/notes/notes:
- *   get:
- *     summary: 获取用户所有笔记
- *     description: 获取当前认证用户的所有笔记，按创建时间倒序排列
- *     tags: [Notes]
- *     security:
- *       - bearerAuth: []
- *     responses:
- *       200:
- *         description: 获取成功
- *         content:
- *           application/json:
- *             schema:
- *               type: object
- *               properties:
- *                 success:
- *                   type: boolean
- *                   example: true
- *                 message:
- *                   type: string
- *                   example: 获取笔记成功
- *                 data:
- *                   type: object
- *                   properties:
- *                     notes:
- *                       type: array
- *                       items:
- *                         $ref: '#/components/schemas/Note'
- *                     count:
- *                       type: integer
- *       401:
- *         description: 未授权
- */
 router.get('/notes', protect, asyncHandler(async (req, res) => {
-    // 从认证中间件获取用户信息
-    const userId = req.user.userId;
+	    // 从认证中间件获取用户信息
+	    const userId = req.user.userId;
     
     // 查询用户的所有笔记，并关联用户信息
     const notes = await Note.find({ user: userId })
@@ -69,48 +34,9 @@ router.get('/notes', protect, asyncHandler(async (req, res) => {
     });
 }));
 
-/**
- * @swagger
- * /api/notes/notes:
- *   post:
- *     summary: 创建新笔记
- *     description: 为当前认证用户创建新的笔记
- *     tags: [Notes]
- *     security:
- *       - bearerAuth: []
- *     requestBody:
- *       required: true
- *       content:
- *         application/json:
- *           schema:
- *             $ref: '#/components/schemas/NoteInput'
- *     responses:
- *       201:
- *         description: 创建成功
- *         content:
- *           application/json:
- *             schema:
- *               type: object
- *               properties:
- *                 success:
- *                   type: boolean
- *                   example: true
- *                 message:
- *                   type: string
- *                   example: 笔记创建成功
- *                 data:
- *                   type: object
- *                   properties:
- *                     note:
- *                       $ref: '#/components/schemas/Note'
- *       400:
- *         description: 请求参数错误
- *       401:
- *         description: 未授权
- */
 router.post('/notes', protect, asyncHandler(async (req, res) => {
-    // 从请求体中提取笔记内容
-    const { content, title, tags } = req.body;
+	    // 从请求体中提取笔记内容
+	    const { content, title, tags } = req.body;
     
     // 输入验证：检查必需字段
     if (!content || content.trim() === '') {

@@ -12,12 +12,10 @@ const express = require('express');
 const path = require('path');
 const compression = require('compression');
 const cors = require('cors');
-const swaggerUi = require('swagger-ui-express');
 
 // 导入配置文件
 const config = require('./config/app');
 const { connectDB } = require('./config/database');
-const swaggerSpec = require('./config/swagger');
 const { startAugmentSyncScheduler } = require('./jobs/augmentSyncScheduler');
 
 // 导入中间件
@@ -80,22 +78,6 @@ app.use(rateLimiter);
 // API专用限流：对API路由应用更严格的限流策略
 // 健康检查等路由不受此限流影响
 app.use('/api', apiRateLimiter);
-
-// ==================== Swagger API 文档 ====================
-// 提供交互式 API 文档界面
-// 访问 /api-docs 查看完整的 API 文档
-const swaggerUiOptions = {
-  explorer: true,
-  customCss: '.swagger-ui .topbar { display: none }',
-  customSiteTitle: 'LYL API 文档'
-};
-app.use('/api-docs', swaggerUi.serve, swaggerUi.setup(swaggerSpec, swaggerUiOptions));
-
-// 提供 JSON 格式的 Swagger 规范
-app.get('/api-docs.json', (req, res) => {
-  res.setHeader('Content-Type', 'application/json');
-  res.send(swaggerSpec);
-});
 
 // ==================== 路由配置 ====================
 // 注册所有应用路由

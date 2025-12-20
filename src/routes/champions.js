@@ -51,63 +51,6 @@ const fallbackChampionData = () => {
   return { champions: normalized, version };
 };
 
-/**
- * @swagger
- * /api/champions:
- *   get:
- *     summary: 获取所有英雄列表
- *     description: 获取英雄联盟所有英雄，支持搜索、标签过滤和分页
- *     tags: [Champions]
- *     security: []
- *     parameters:
- *       - in: query
- *         name: search
- *         schema:
- *           type: string
- *         description: 搜索关键词（匹配名称、标题、key）
- *       - in: query
- *         name: tags
- *         schema:
- *           type: string
- *         description: 英雄标签过滤（多个用逗号分隔，如 Mage,Assassin）
- *       - in: query
- *         name: sort
- *         schema:
- *           type: string
- *           enum: [name, createdAt, key]
- *           default: name
- *         description: 排序字段
- *       - in: query
- *         name: order
- *         schema:
- *           type: string
- *           enum: [asc, desc]
- *           default: asc
- *         description: 排序方式
- *     responses:
- *       200:
- *         description: 获取成功
- *         content:
- *           application/json:
- *             schema:
- *               type: object
- *               properties:
- *                 success:
- *                   type: boolean
- *                   example: true
- *                 message:
- *                   type: string
- *                   example: 英雄列表获取成功
- *                 data:
- *                   type: object
- *                   properties:
- *                     champions:
- *                       type: array
- *                       items:
- *                         $ref: '#/components/schemas/Champion'
- *                     total:
- *                       type: integer
- */
 router.get(
   '/',
   asyncHandler(async (req, res) => {

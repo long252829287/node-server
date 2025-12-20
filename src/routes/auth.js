@@ -16,52 +16,9 @@ const router = express.Router();
 
 // ==================== 用户注册 ====================
 
-/**
- * @swagger
- * /api/auth/register:
- *   post:
- *     summary: 用户注册
- *     description: 创建新用户账户，支持设置昵称
- *     tags: [Auth]
- *     security: []
- *     requestBody:
- *       required: true
- *       content:
- *         application/json:
- *           schema:
- *             $ref: '#/components/schemas/RegisterInput'
- *     responses:
- *       201:
- *         description: 注册成功
- *         content:
- *           application/json:
- *             schema:
- *               type: object
- *               properties:
- *                 success:
- *                   type: boolean
- *                   example: true
- *                 message:
- *                   type: string
- *                   example: 用户注册成功
- *                 data:
- *                   type: object
- *                   properties:
- *                     user:
- *                       $ref: '#/components/schemas/User'
- *                     token:
- *                       type: string
- *                       example: eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...
- *       400:
- *         description: 请求参数错误
- *         content:
- *           application/json:
- *             schema:
- *               $ref: '#/components/schemas/ErrorResponse'
- */
 router.post('/register', async (req, res) => {
-  try {
-    const { username, password, email, nickname } = req.body;
+	  try {
+	    const { username, password, email, nickname } = req.body;
 
     // 输入验证
     if (!username || !password) {
@@ -142,51 +99,9 @@ router.post('/register', async (req, res) => {
 
 // ==================== 用户登录 ====================
 
-/**
- * @swagger
- * /api/auth/login:
- *   post:
- *     summary: 用户登录
- *     description: 验证用户凭据并返回 JWT 访问令牌
- *     tags: [Auth]
- *     security: []
- *     requestBody:
- *       required: true
- *       content:
- *         application/json:
- *           schema:
- *             $ref: '#/components/schemas/LoginInput'
- *     responses:
- *       200:
- *         description: 登录成功
- *         content:
- *           application/json:
- *             schema:
- *               type: object
- *               properties:
- *                 success:
- *                   type: boolean
- *                   example: true
- *                 message:
- *                   type: string
- *                   example: 登录成功
- *                 data:
- *                   type: object
- *                   properties:
- *                     user:
- *                       $ref: '#/components/schemas/User'
- *                     token:
- *                       type: string
- *       401:
- *         description: 用户名或密码错误
- *         content:
- *           application/json:
- *             schema:
- *               $ref: '#/components/schemas/ErrorResponse'
- */
 router.post('/login', async (req, res) => {
-  try {
-    const { username, password } = req.body;
+	  try {
+	    const { username, password } = req.body;
 
     // 输入验证
     if (!username || !password) {
