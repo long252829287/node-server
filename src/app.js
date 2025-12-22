@@ -16,7 +16,6 @@ const cors = require('cors');
 // 导入配置文件
 const config = require('./config/app');
 const { connectDB } = require('./config/database');
-const { startAugmentSyncScheduler } = require('./jobs/augmentSyncScheduler');
 
 // 导入中间件
 const { securityHeaders, corsOptions, rateLimiter, apiRateLimiter } = require('./middleware/security');
@@ -33,10 +32,6 @@ app.set('trust proxy', 1)
 // 连接数据库
 // 在应用启动时建立MongoDB连接
 connectDB();
-
-// ==================== 定时任务 ====================
-// 强化池同步（72h一次，默认关闭，需设置 AUGMENTS_SYNC_ENABLED=true）
-startAugmentSyncScheduler();
 
 // ==================== 安全中间件配置 ====================
 // 设置安全HTTP头，防止常见攻击

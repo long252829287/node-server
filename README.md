@@ -206,18 +206,3 @@ npm test
 ## 同步脚本
 
 - 同步海克斯大乱斗装备： npm run sync:items -- --mode hex_brawl --locale zh_CN
-- 准备一个“海克斯大乱斗允许的 augmentId 列表”（这是
-  CommunityDragon 公开静态文件里目前没直接给出来的差异点），然后这样同步：
-
-  - 方式 1（推荐）：pool 文件是一个字符串数组（apiName）
-      - hex-brawl-pool.json 示例：["DualWield","Eureka","Earthwake"]
-      - 执行：npm run sync:augments -- --mode hex_brawl --locale zh_CN --pool
-        https://.../hex-brawl-pool.json
-  - 方式 2：用环境变量
-      - AUGMENTS_POOL_URL=https://.../hex-brawl-pool.json npm run sync:augments
-        -- --mode hex_brawl --locale zh_CN
-
-  如果你能给我一份“海克斯大乱斗实际可选强化”的完整 augmentId 列表（从前端/抓包/
-  截图整理都行），我可以直接把它落到仓库里（例如 src/assets/json/lol/
-  hex_brawl_augment_pool.json），然后让同步默认就用这份 pool，不再需要你额外传
-  --pool。

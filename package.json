@@ -12,8 +12,6 @@
     "collect:champions": "node src/scripts/collectChampionData.js",
     "collect:items": "node src/scripts/collectItemData.js",
     "collect:all": "node src/scripts/collectAllData.js",
-    "seed:augments": "node src/scripts/seedAugments.js",
-    "sync:augments": "node src/scripts/syncAugments.js",
     "sync:champions": "node src/scripts/syncChampions.js",
     "sync:items": "node src/scripts/syncItems.js"
   },

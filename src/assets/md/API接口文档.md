@@ -464,72 +464,12 @@
 - **描述**: 获取装备详情；可通过 query `mode=hex_brawl` 指定查海克斯装备池
 - **认证**: 无需认证
 
-### 3. 强化池（Augments，DB版本）
-
-#### 1.1 获取强化池列表
-- **接口**: `GET /api/augments`
-- **描述**: 按模式/关键词/标签/稀有度筛选强化池
-- **认证**: 无需认证
-- **请求参数（query）**:
-  - `mode`（可选）: 模式筛选（如 `hex_brawl`）
-  - `search`（可选）: 关键词（匹配 `name/description`）
-  - `tags`（可选）: 标签过滤（多个用逗号分隔）
-  - `tier`（可选）: 稀有度/层级（推荐：`silver | gold | prismatic`；兼容 `0/1/2` 与 `kSilver/kGold/kPrismatic`）
-  - `isActive`（可选）: 是否启用（默认 `true`）
-  - `limit`（可选）: 返回数量（默认 `50`，最大 `200`）
-  - `offset`（可选）: 偏移量（默认 `0`）
-- **响应示例**:
-  ```json
-  {
-    "success": true,
-    "message": "强化池获取成功",
-    "data": {
-      "augments": [
-        {
-          "augmentId": "WarmupRoutine",
-          "name": "热身动作",
-          "description": "获得召唤师技能...",
-          "icon": "https://.../warmuproutine_large.png",
-          "tier": "0",
-          "tags": [],
-          "modes": ["hex_brawl"],
-          "patchVersion": "14.24",
-          "isActive": true,
-          "createdAt": "2024-01-01T00:00:00.000Z",
-          "updatedAt": "2024-01-01T00:00:00.000Z"
-        }
-      ],
-      "total": 1
-    },
-    "timestamp": "2024-01-01T00:00:00.000Z"
-  }
-  ```
-
-#### 1.2 获取强化详情
-- **接口**: `GET /api/augments/:augmentId`
-- **描述**: 按业务唯一ID（`augmentId`）获取强化详情
-- **认证**: 无需认证
-- **路径参数**:
-  - `augmentId`: 强化业务ID（例如：`WarmupRoutine`）
-
-### 4. 强化池（Augment，旧JSON版本，兼容）
-
-#### 2.1 获取海克斯列表（静态JSON）
-- **接口**: `GET /api/augment`
-- **描述**: 读取本地 `src/assets/json/lol/augment.json` 返回海克斯列表（不支持筛选）
-- **认证**: 无需认证
-
-#### 2.2 兼容旧接口
-- **接口**: `GET /api/hex`
-- **描述**: 兼容旧路径，行为与 `GET /api/augment` 一致
-- **认证**: 无需认证
-
 ### 5. 攻略（Strategies）扩展：支持 mode + augmentIds
 
 > 兼容说明：原有 `mapType` 参数继续可用；新增 `mode` 与其等价，优先使用 `mode`。
 > 权限说明：
 > - 需要登录：创建攻略、更新攻略、删除攻略、查询“我的攻略”
-> - 无需登录：查看攻略列表/详情、按英雄/热门/推荐筛选、查看装备/强化等 LOL 数据接口
+> - 无需登录：查看攻略列表/详情、按英雄/热门/推荐筛选、查看装备等 LOL 数据接口
 
 #### 3.1 获取攻略列表（支持 mode 筛选）
 - **接口**: `GET /api/strategies`
@@ -563,46 +503,20 @@
 - **接口**: `POST /api/strategies/:id/like`
 - **认证**: 无需登录
 
-#### 3.4 可选的 augmentIds 存在性校验（推荐）
-- 默认关闭：仅做类型校验与基础清洗
-- 开启方式：设置环境变量 `AUGMENT_VALIDATE_EXISTS=true`
-- 开启后：`create/update` 会校验 `augmentIds` 是否存在于强化池中（并按当前 `mode/mapType` 匹配 `modes`）
-
 ### 6. LOL 数据更新（自动同步/手动同步）
 
 > 说明：
-> - 强化（Augments）：Riot 官方开发者 API/Data Dragon 暂无稳定公开的“强化静态列表”接口；本项目采用 CommunityDragon（arena）作为数据源（可配置）。
 > - 英雄/标准装备：使用 Riot Data Dragon。
 > - 海克斯大乱斗装备：使用 Data Dragon 标准装备的 ARAM 子集（中文与图片更稳定）。
-> - 强化池与模式：海克斯大乱斗（ARAM: Mayhem）与 Arena 强化相似但不完全一致；建议通过 `AUGMENTS_POOL_URL` 提供该模式允许的强化集合来过滤同步。
 
 #### 6.1 手动同步（推荐用于首次导入/排查）
 - **命令**:
   - `npm run sync:champions`
   - `npm run sync:items`（可选 `--mode standard|hex_brawl|both`；可选 `--locale zh_CN`）
-  - `npm run sync:augments`（可选 `--mode hex_brawl|arena`；可选 `--pool <url>`；可选 `--locale zh_CN`）
 - **可选参数**:
-  - `--mode hex_brawl`
-  - `--locale zh_CN`（标准/海克斯大乱斗装备均会按该语言从 Data Dragon 抓取）
-  - `--pool <url>`（可选；提供“该模式允许的强化集合”列表，用于过滤同步）
-  - `--patch 14.24`（写入 `patchVersion`）
-  - `--deactivate-old`（同 mode 下，其他 patchVersion 置为 `isActive=false`，便于版本切换）
-  - `--source <url>`（自定义数据源 URL）
-
-#### 6.2 定时同步（72小时一次）
-- **默认关闭**：避免在无网络/开发环境下启动即请求外网
-- **开启方式**：设置环境变量 `LOL_SYNC_ENABLED=true`（或分别开启：`AUGMENTS_SYNC_ENABLED/CHAMPIONS_SYNC_ENABLED/ITEMS_SYNC_ENABLED`）
-- **相关环境变量**：
-  - `LOL_LOCALE=zh_CN`（Data Dragon 语言）
-  - `AUGMENTS_SYNC_MODE=hex_brawl`
-  - `AUGMENTS_SOURCE_URL=<url>`（不设置则使用默认 CommunityDragon 源）
-  - `AUGMENTS_POOL_URL=<url>`（可选；提供“该模式允许的强化集合”列表，用于过滤同步）
-  - `AUGMENTS_PATCH_VERSION=14.24`（可选；不设置默认写入 `latest`）
-  - `AUGMENTS_DEACTIVATE_OLD=true`（可选）
-  - 本地回退缓存（同步成功后自动写入）：
-    - `data/cache/champions.json`
-    - `data/cache/items.standard.json`
-    - `data/cache/items.hex_brawl.json`
+  - `--mode standard|hex_brawl|both`
+  - `--locale zh_CN`
+  - `--version <dd-version>`（或 `--patch <dd-version>`）
 
 ## 认证头设置
 
@@ -942,5 +856,5 @@ export default {
 - 支持用户注册、登录、登出
 - 支持笔记的增删改查
 - 提供系统健康检查和状态监控
-- **v1.1.0**: 新增 LOL 强化池接口（`/api/augments`），攻略支持 `mode=hex_brawl` 与 `augmentIds` 保存
+- **v1.1.0**: 攻略支持 `mode=hex_brawl` 与 `augmentIds` 保存
 - **v1.2.0**: 英雄/装备支持定时同步（72h）与本地回退；装备支持 `mode=standard|hex_brawl`

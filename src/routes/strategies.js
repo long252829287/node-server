@@ -11,7 +11,6 @@ const Champion = require('../models/Champion')
 const Item = require('../models/Item')
 const HexItem = require('../models/HexItem')
 const Rune = require('../models/Rune')
-const Augment = require('../models/Augment')
 const { asyncHandler } = require('../utils/asyncHandler')
 const { successResponse, errorResponse } = require('../utils/response')
 const { protect: authMiddleware } = require('../middleware/authMiddleware')
@@ -209,21 +208,6 @@ router.post(
       : []
 
     const normalizedTags = normalizeStringArray(tags)
-
-    // 可选：校验 augmentIds 是否存在（默认关闭，避免未导入数据时影响创建）
-    if (process.env.AUGMENT_VALIDATE_EXISTS === 'true' && normalizedAugmentIds.length > 0) {
-      const augmentQuery = { augmentId: { $in: normalizedAugmentIds } }
-      if (resolvedMapType && resolvedMapType !== 'both') {
-        augmentQuery.modes = resolvedMapType
-      }
-
-      const existing = await Augment.find(augmentQuery).select('augmentId').lean()
-      const existingSet = new Set(existing.map((a) => a.augmentId))
-      const missing = normalizedAugmentIds.filter((id) => !existingSet.has(id))
-      if (missing.length > 0) {
-        return res.status(400).json(errorResponse('augmentIds 包含无效强化', { missing }))
-      }
-    }
 
     // 验证必填字段
     if (!championId) {
@@ -491,20 +475,6 @@ router.put(
           return res.status(400).json(errorResponse('augmentIds 必须是数组'))
         }
         const normalizedAugmentIds = [...new Set(augmentIds.map((id) => String(id).trim()).filter(Boolean))]
-
-        if (process.env.AUGMENT_VALIDATE_EXISTS === 'true' && normalizedAugmentIds.length > 0) {
-          const augmentQuery = { augmentId: { $in: normalizedAugmentIds } }
-          if (strategy.mapType && strategy.mapType !== 'both') {
-            augmentQuery.modes = strategy.mapType
-          }
-
-          const existing = await Augment.find(augmentQuery).select('augmentId').lean()
-          const existingSet = new Set(existing.map((a) => a.augmentId))
-          const missing = normalizedAugmentIds.filter((id) => !existingSet.has(id))
-          if (missing.length > 0) {
-            return res.status(400).json(errorResponse('augmentIds 包含无效强化', { missing }))
-          }
-        }
 
         strategy.augmentIds = normalizedAugmentIds
       }
