@@ -13,7 +13,10 @@
     "collect:items": "node src/scripts/collectItemData.js",
     "collect:all": "node src/scripts/collectAllData.js",
     "sync:champions": "node src/scripts/syncChampions.js",
-    "sync:items": "node src/scripts/syncItems.js"
+    "sync:items": "node src/scripts/syncItems.js",
+    "sync:augments": "node src/scripts/syncAugments.js",
+    "backfill:augment-icons": "node src/scripts/backfillAugmentIcons.js",
+    "repair:augment-icons": "node src/scripts/repairAugmentIcons.js"
   },
   "dependencies": {
     "axios": "^1.7.7",

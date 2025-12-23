@@ -17,6 +17,7 @@ const championsRoutes = require('./champions');
 const itemsRoutes = require('./items');
 const runesRoutes = require('./runes');
 const strategiesRoutes = require('./strategies');
+const augmentsRoutes = require('./augments');
 
 // ========== 用户列表接口 ========== //
 const User = require('../models/User');
@@ -102,6 +103,13 @@ router.use('/runes', runesRoutes);
  * 功能: 英雄出装攻略的CRUD管理
  */
 router.use('/strategies', strategiesRoutes);
+
+/**
+ * 海克斯强化查询API路由组
+ * 基础路径: /api/augments
+ * 功能: 海克斯强化列表查询
+ */
+router.use('/augments', augmentsRoutes);
 
 // ==================== API端点汇总 ====================
 
